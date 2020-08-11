@@ -129,7 +129,7 @@ names(TCGAalignment)[names(TCGAalignment) == "TCGAalignm ent$V1"] <- "fullID"
 TCGAalignment$submitter_id <- substr(TCGAalignment$fullID, 1, 12)
 ```
 
-#PRS score
+# PRS score: Germline risk, genomic data only
 
 This is the code to generate the polygenic risk score (as a form of control, genomic only) and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. The PRS used here is the 313-SNP score as identified by Mavaddat et al (AJHG, 2019).
 ```{r PRS score generation, cache=TRUE, warning=FALSE, echo=FALSE}
@@ -246,7 +246,8 @@ ggforest(fit.coxph_r, data = recurrencewhite)
 
 We see no association between PRS score and OS or PFS. 
 
-#Risk variants: Predicted transcriptomic score
+# Germline risk
+## Germline risk: Predicted transcriptomic score (PTRS)
 
 This is the code to generate the predicted transcriptomic risk score and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
 
@@ -380,7 +381,7 @@ ggforest(fit.coxphPTRS, data = recurrencewhitePTRS)
 
 We see no association between PTRS score and PFS. 
 
-#Risk variants: Observed transcriptomic score
+## Germline risk: Observed transcriptomic score (OTRS)
 
 This is the code to generate the observed transcriptomic risk score and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
 
@@ -502,7 +503,8 @@ ggforest(fit.coxphOTRS, data = recurrencewhiteOTRS)
 
 There is a minimal signal that is not clinically significant and does not reach statistical significance, but this is the next closest signal of score performance. 
 
-#Survival variants: Predicted transcriptomic score
+# Survival
+## Survival-related variants: Predicted transcriptomic score (PTRS)
 This is the code to generate the predicted transcriptomic risk score (using survival GWAS as a weight) and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
 
 ```{r Survival-weighted Predicted-TPRS score generation for overall survival, echo=FALSE, cache=TRUE,  warning=FALSE}
@@ -629,7 +631,7 @@ fit.coxphPTRSsurv <- coxph(surv_objectPTRSsurv ~ recurrencewhitePTRSsurv$tprs,
 ggforest(fit.coxphPTRSsurv, data = recurrencewhitePTRSsurv)
 ```
 
-#Survival variants: Observed transcriptomic score
+## Survival-related variants: Observed transcriptomic score (OTRS)
 
 This is the code to generate the observed transcriptomic risk score (using survival GWAS as a weight) and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
 
@@ -727,7 +729,9 @@ When survival is used as the weighting factor, there is no longer any associatio
 
 This is the code to generate the predicted transcriptomic risk score (using subtype-specific GWAS results and calculated for patients within that subtype) and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
 
-#Subtype-specific variants: LumA/ Predicted
+# Subtype-specific variants
+
+## LumA/ Predicted (PTRS)
 ```{r LumA-specific Predicted-TPRS score generation for overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
 ospredictedexpressionLumA <- ospredictedexpressionreference 
 LumA <- subtype_formatted %>% filter(pam50=="Luminal A")
@@ -792,7 +796,7 @@ fit.coxphPTRSLumA <- coxph(surv_objectPTRSLumA ~ survivalwhitePTRSLumA$tprs,
 ggforest(fit.coxphPTRSLumA, data = survivalwhitePTRSLumA)
 ```
 
-#Subtype-specific variants: LumB/ Predicted
+## LumB/ Predicted (PTRS)
 ```{r LumB-specific Predicted-TPRS score generation for overall survival, echo=FALSE, cache=TRUE,  warning=FALSE}
 ospredictedexpressionLumB <- ospredictedexpressionreference 
 LumB <- subtype_formatted %>% filter(pam50=="Luminal B")
@@ -857,7 +861,7 @@ fit.coxphPTRSLumB <- coxph(surv_objectPTRSLumB ~ survivalwhitePTRSLumB$tprs,
 ggforest(fit.coxphPTRSLumB, data = survivalwhitePTRSLumB)
 ```
 
-#Subtype-specific variants: TNBC/ Predicted
+## TNBC/ Predicted (PTRS)
 ```{r TNBC-specific Predicted-TPRS score generation for overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
 ospredictedexpressionTNBC <- ospredictedexpressionreference 
 TNBC <- subtype_formatted %>% filter(pam50=="Basal-like")
@@ -920,7 +924,7 @@ fit.coxphPTRSTNBC <- coxph(surv_objectPTRSTNBC ~ survivalwhitePTRSTNBC$tprs,
 ggforest(fit.coxphPTRSTNBC, data = survivalwhitePTRSTNBC)
 ```
 
-#Subtype-specific variants: HER2/ Predicted
+## HER2/ Predicted (PTRS)
 ```{r HER2-specific Predicted-TPRS score generation for overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
 ospredictedexpressionHER2 <- ospredictedexpressionreference 
 HER2 <- subtype_formatted %>% filter(pam50=="HER2-enriched")
@@ -983,7 +987,7 @@ fit.coxphPTRSHER2 <- coxph(surv_objectPTRSHER2 ~ survivalwhitePTRSHER2$tprs,
 ggforest(fit.coxphPTRSHER2, data = survivalwhitePTRSHER2)
 ```
 
-#Combined subtype-specific contribution
+## Combined subtype-specific contribution (PTRS)
 ```{r Subtype-specific Cox regression of Predicted TRS and overall survival, echo=FALSE, cache=TRUE, warning=FALSE}
 survivalwhitesubtype <- survivalwhitePTRS
 temp1 <- PTRSLumAscorefinal %>% select(indiv, tprs)
@@ -1071,7 +1075,9 @@ as.data.frame(res)
 
 No specific subtype (which are drived from existing RNA subtype methods) drove the score performance, but we did see that the score performance improved stratification among patients within the Basal and HER2 groups given the interaction plots. This is in contrast to existing scoring methods, which typically work best in Luminal A/B cancers. 
 
-#Combined scores + clinical data
+# Combined scores + clinical data
+
+## Clinical: Overall survival
 ```{r Cox regression of combined methods and overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
 mergePTRS <- survivalwhitePTRS %>% dplyr::select (indiv, tprs)
 colnames(mergePTRS) <- c("indiv", "PTRS")
@@ -1167,6 +1173,7 @@ fit.coxphall <- coxph(surv_objectall ~ OS_European$Age+OS_European$AJCCN.Nodal_S
 ggforest(fit.coxphall, data = OS_European)
 ```
 
+## Clinical: Progression-free survival
 ```{r Cox regression of combined methods and progression-free survival, echo=FALSE, cache=TRUE, warning=FALSE}
 mergePTRS <- recurrencewhitePTRS %>% dplyr::select (indiv, tprs)
 colnames(mergePTRS) <- c("indiv", "PTRS")
@@ -1304,7 +1311,7 @@ ggforest(fit.coxphall, data = PFS_European)
 
 When combined with clinical data, the score performance of PTRS in overall survival remained persistent, offering an interesting signal to study further. The performance of OTRS in PFS was actually improved with clinical data (more consistent with real-world data), but this was no longer significant with incorporation of PAM50 data, suggesting that the latter encompasses the same information that the former does and the germline does not add specific information in that context.
 
-#Clustering and feature selection 
+# Clustering and feature selection 
 ```{r Spearman feature selection of OTRS and PTRS, warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
 #OS-PTRS all-feature setup
 OS_vector <- survivalwhite %>% select(submitter_id, phenotype, oss.months)
@@ -1354,7 +1361,7 @@ os_ptrs_model$indiv <- rownames(os_ptrs_model)
 survivalwhitePTRS_genefeatures <- merge(survivalwhitePTRS, os_ptrs_model, by="indiv")
 ```
 
-#Alternate models: OS: BGLM-Cox / BGLM Weibull
+# Alternate models: OS: BGLM-Cox / BGLM Weibull
 ```{r OS ML models with BGLM-Cox and BGLM-Weibull, warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
 
 #Overall survival of OS-PTRS based on Boosted gradient linear model-Cox model (from mboost)
@@ -1374,12 +1381,11 @@ survivalwhitePTRS_genefeatures <- merge(survivalwhitePTRS, os_ptrs_model, by="in
 #BGLM-Weibull
 ```
 
-
-#Alternate models: PFS: MSR-RF / Boosted Trees 
+# Alternate models: PFS: MSR-RF / Boosted Trees 
 ```{r PFS ML models with MSR-RF and Boosted Trees,  warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
 ```
 
-#Alternate models: COXNNET with no selection
+# Alternate models: COXNNET with no selection
 ```{r Coxnet model of overall survival with germline genome PRS OTRS and PTRS, warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
 #OS x predicted transriptome
 OS_vector <- survivalwhite %>% select(submitter_id, phenotype, oss.months)
