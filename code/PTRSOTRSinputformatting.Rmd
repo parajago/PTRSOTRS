@@ -1,0 +1,53 @@
+```{r}
+library(data.table)
+library(stringr)
+library(dplyr)
+
+setwd("~/Research-Local/2019-tprs/Input/EA-summarystats")
+
+#Overall
+temp <- fread ("icogs_onco_gwas_meta_overall_breast_cancer_summary_level_statistics.txt", select=c(1,24,25,26,40,41,42,43,44,45,46,47))
+write.table(temp, "BCAC_2020_metaanalysis_formatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+#Subtypes
+temp2 <- fread ("icogs_onco_meta_intrinsic_subtypes_summary_level_statistics.txt", select=c(1,21,22,23,40,41,42,43,44,45,46,47,48,49,50,51,52,53))
+
+LumA <- temp2 %>% select(var_name, SNP.Onco, chr.Onco, Position.Onco, Effect.Meta, Baseline.Meta, Luminal_A_log_or_meta, Luminal_A_se_meta)
+LumA$OR_meta <- exp(LumA$Luminal_A_log_or_meta)
+write.table(LumA, "BCAC_2020_LumA_formatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+LumB <- temp2 %>% select(var_name, SNP.Onco, chr.Onco, Position.Onco, Effect.Meta, Baseline.Meta, Luminal_B_log_or_meta, Luminal_B_se_meta)
+LumB$OR_meta <- exp(LumB$Luminal_B_log_or_meta)
+write.table(LumB, "BCAC_2020_LumB_formatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+HER2 <- temp2 %>% select(var_name, SNP.Onco, chr.Onco, Position.Onco, Effect.Meta, Baseline.Meta, HER2_Enriched_log_or_meta, HER2_Enriched_se_meta)
+HER2$OR_meta <- exp(HER2$HER2_Enriched_log_or_meta)
+write.table(HER2, "BCAC_2020_HER2_formatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+TNBC <- temp2 %>% select(var_name, SNP.Onco, chr.Onco, Position.Onco, Effect.Meta, Baseline.Meta, Triple_Neg_log_or_meta, Triple_Neg_se_meta)
+TNBC$OR_meta <- exp(TNBC$Triple_Neg_log_or_meta)
+write.table(TNBC, "BCAC_2020_TNBC_formatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+setwd("~/Research-Local/2019-tprs/Input/AA-summarystats")
+
+#AMBER formatting
+amber <- fread ("AMBER/allBC_AMBER.assoc.txt")
+amber$variant <- amber$marker
+amber <- separate(amber, col="marker", into=c("chr", "pos"), sep="([:])")
+amber$pval <- amber$`Pr(>|z|)`
+amber$`Pr(>|z|)` <- NULL
+write.table(amber, "AMBER_formatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+amber2 <- fread("AMBER/AMBER_fullharmonized.txt")
+amber2$variant_id <- amber2$panel_variant_id
+amber2$variant_id <- gsub("^.{0,3}", "", amber2$variant_id)
+amber2$variant_id <- substr(amber2$variant_id,1,nchar(amber2$variant_id)-4)
+write.table(amber2, "AMBER_fullharmonizedformatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+#African ancestry aliquot extraction
+setwd("~/Research-Local/2019-tprs/Input/ids")
+brcaall <- fread ("brca.samples.tsv")
+brcaall <- brcaall %>% filter (pop=="AFR")
+brcaall <- brcaall$start
+write.table(brcaall, "BRCA.AFR.aliquot.tsv", sep="\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
+```

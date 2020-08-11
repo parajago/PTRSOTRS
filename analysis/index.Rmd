@@ -1,0 +1,25 @@
+---
+title: "Predicted Transcriptomic / Observed Transcriptomic Score Project"
+
+site: workflowr::wflow_site
+output:
+  workflowr::wflow_html:
+    df_print: paged
+    toc: true
+    theme: spacelab
+    highlight: textmate
+---
+
+Padma Sheila Rajagopal, MD MPH
+Olopade Lab / Im Lab Postdoctoral Fellow
+
+This is the site I will use for reporting on a project in which I am integrating germline risk information with transcriptomic methods (observed vs. predicted from germline) to better stratify breast cancer patients. 
+
+Analysis as below:
+
+* https://docs.google.com/document/d/1Rhp67Yp_OLxVNAe6u_zVeh2_mQKkTXvN3qqdwCjDM8M/edit?usp=sharing Methods for this project 
+
+* https://docs.google.com/document/d/17LzTapv50UOhJs7c0-8cECFKyZJPz7Umxup2zE6NNdo/edit?usp=sharing Results for this project 
+
+* Score calculation and performance testing: 
+https://parajago.github.io/PTRSOTRS/TRSscorecalculator.html

@@ -1,0 +1,99 @@
+---
+title: "Harmonization and Summary-PrediXcan"
+author: "Padma Sheila Rajagopal"
+date: "2020-08-11"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+##Harmonization
+Basic information on how to run this code (including how to install conda environment) is located at: 
+https://github.com/hakyimlab/MetaXcan/wiki/Tutorial:-GTEx-v8-MASH-models-integration-with-a-Coronary-Artery-Disease-GWAS
+
+-gwas_file: Self-explanatory. Can be in the format of summary statistics. There is an option for a folder if statistics are broken up by chromosome. 
+
+-liftover $DATA2/hg19ToHg38.over.chain.gz: File that translates positions from Hg19 to Hg38. Required for use with Predict DB models. 
+
+-snp_reference_metadata $DATA3/variant_metadata.txt.gz: Variant metadata from 1000 Genomes project.
+
+-output_column_map variables are all located within the input GWAS file. 
+-panel_variant_id must be specified for use with PrediXcan. 
+
+```{bash}
+#PBS -N fullharmonization
+#PBS -S /bin/bash
+#PBS -l walltime=12:00:00
+#PBS -l mem=4gb
+#PBS -l nodes=1:ppn=4
+#PBS -o ${PBS_JOBNAME}.o${PBS_JOBID}.log
+#PBS -e ${PBS_JOBNAME}.e${PBS_JOBID}.err
+
+module load gcc/6.2.0
+module load python/3.5.3
+module load miniconda3/4.7.10
+
+eval "$(conda shell.bash hook)"
+conda activate /gpfs/data/im-lab/nas40t2/prajagopal/Software/conda/envs/imlabtools
+
+GWASTOOLS=/gpfs/data/im-lab/nas40t2/prajagopal/generate_weights/src
+DATA1=/gpfs/data/im-lab/nas40t2/prajagopal/generate_weights
+DATA2=/gpfs/data/im-lab/nas40t2/prajagopal/generate_weights/gwasharmonization/liftover
+DATA3=/gpfs/data/im-lab/nas40t2/prajagopal/generate_weights/gwasharmonization/reference_panel_1000G
+
+python $GWASTOOLS/gwas_parsing.py \
+-gwas_file $DATA1/AMBER_formatted.txt.gz \
+-liftover $DATA2/hg38ToHg38.over.chain.gz \
+-snp_reference_metadata $DATA3/variant_metadata.txt.gz METADATA \
+-output_column_map SNPID variant_id \
+-output_column_map A0 non_effect_allele \
+-output_column_map A1 effect_allele \
+-output_column_map beta effect_size \
+-output_column_map se standard_error \
+-output_column_map chr chromosome \
+-output_column_map pos position \
+-output_column_map scorep pvalue \
+-output_order variant_id panel_variant_id chromosome position effect_allele non_effect_allele frequency pvalue zscore effect_size standard$
+--insert_value sample_size 14370 --insert_value n_cases 6657 \
+-output $PBS_O_WORKDIR/AMBER_fullharmonized_hg38hg38.txt.gz \
+--chromosome_format
+#--keep_all_original_entries
+```
+
+```{bash}
+#!/bin/bash
+#PBS -N spredixcan.pbs
+#PBS -S /bin/bash
+#PBS -l walltime=0:30:00
+#PBS -l mem=2gb
+#PBS -l nodes=1:ppn=1
+
+#PBS -o ${PBS_JOBNAME}.o${PBS_JOBID}.log
+#PBS -e ${PBS_JOBNAME}.e${PBS_JOBID}.err
+
+module load gcc/6.2.0
+module load python/3.5.3
+module load miniconda3/4.7.10
+
+eval "$(conda shell.bash hook)"
+conda activate /gpfs/data/im-lab/nas40t2/prajagopal/Software/conda/envs/imlabtools
+
+GWASTOOLS=/gpfs/data/im-lab/nas40t2/prajagopal/generate_weights/src
+DATA1=/gpfs/data/im-lab/nas40t2/prajagopal/generate_weights
+DATA2=/gpfs/data/im-lab/nas40t2/prajagopal/generate_weights/gwasharmonization/liftover
+DATA3=/gpfs/data/im-lab/nas40t2/prajagopal/generate_weights/gwasharmonization/reference_panel_1000G
+
+/gpfs/data/im-lab/nas40t2/prajagopal/Software/SPrediXcan.py \
+--gwas_file $DATA1/AMBER_fullharmonizedformatted.txt.gz \
+--snp_column variant_id --effect_allele_column effect_allele --non_effect_allele_column non_effect_allele --zscore_column zscore --chromos$
+--model_db_snp_key VarID \
+--model_db_path /gpfs/data/im-lab/nas40t2/abarbeira/projects/gtex_v8/models_v1/eqtl/mashr/mashr_Breast_Mammary_Tissue.db \
+--covariance /gpfs/data/im-lab/nas40t2/abarbeira/projects/gtex_v8/models_v1/eqtl/mashr/mashr_Breast_Mammary_Tissue.txt.gz \
+--keep_non_rsid \
+--throw \
+--output_file /gpfs/data/im-lab/nas40t2/prajagopal/generate_weights/AMBER_2017_spredixcan_GTExV7_v0_formatted.csv
+
+#DATA4=/gpfs/data/im-lab/nas40t2/abarbeira/projects/african_american_cohort_skdas/predictdb_pipeline_skdas/model_training/v0/results
+#--model_db_path $DATA4/aa_adipose_signif.db \
+#--covariance $DATA4/aa_adipose_signif.txt.gz \
+```
+
