@@ -1,14 +1,12 @@
-name: "Workshop-GWAS-Summary-Harmonization"
+name: "PTRS-OTRS scoring project"
 output_dir: ../docs
 navbar:
-  title: "Workshop-GWAS-Summary-Harmonization"
+  title: "PTRS-OTRS scoring project"
   left:
   - text: Home
     href: index.html
-  - text: About
-    href: about.html
-  - text: License
-    href: license.html
+  - text: Home
+    href: TRSscorecalculator.html
 output:
   workflowr::wflow_html:
     toc: yes

@@ -132,7 +132,7 @@ TCGAalignment$submitter_id <- substr(TCGAalignment$fullID, 1, 12)
 #PRS score
 
 This is the code to generate the polygenic risk score (as a form of control, genomic only) and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. The PRS used here is the 313-SNP score as identified by Mavaddat et al (AJHG, 2019).
-```{r PRS score generation, cache=TRUE, warning=FALSE}
+```{r PRS score generation, cache=TRUE, warning=FALSE, echo=FALSE}
 PRSChr1allpts <- read.table("Input/PRS-dosage/TCGA-EUR/BRCA_chr1.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
 PRSChr2allpts <- read.table("Input/PRS-dosage/TCGA-EUR/BRCA_chr2.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
 PRSChr3allpts <- read.table("Input/PRS-dosage/TCGA-EUR/BRCA_chr3.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
@@ -214,7 +214,7 @@ PRSscorefinalPFS <- merge(PRSscorefinal, famPFS, by.x="fullID", by.y="submitter_
 PRSscorefinalPFS <- PRSscorefinalPFS %>% dplyr::select (fullID, score, Z_score, pval, cutoff, phenotype)
 ```
 
-```{r Cox regression of PRS on overall survival, cache=TRUE, warning=FALSE}
+```{r Cox regression of PRS on overall survival, cache=TRUE, warning=FALSE, echo=FALSE}
 survivalwhite <- merge(PRSscorefinalOS, TCGAavail)
 survivalwhite$phenotype <- ifelse(survivalwhite$phenotype=="2", "case", survivalwhite$phenotype)
 survivalwhite$phenotype <- ifelse(survivalwhite$phenotype=="1", 0, survivalwhite$phenotype)
@@ -229,7 +229,7 @@ fit.coxph <- coxph(surv_object ~ survivalwhite$score,
 ggforest(fit.coxph, data = survivalwhite)
 ```
 
-```{r Cox regression of PRS on recurrence, cache=TRUE, warning=FALSE}
+```{r Cox regression of PRS on recurrence, cache=TRUE, warning=FALSE, echo=FALSE}
 recurrencewhite <- merge(PRSscorefinalPFS, TCGAavail)
 recurrencewhite$phenotype <- ifelse(recurrencewhite$phenotype=="2", "case", recurrencewhite$phenotype)
 recurrencewhite$phenotype <- ifelse(recurrencewhite$phenotype=="1", 0, recurrencewhite$phenotype)
@@ -250,7 +250,7 @@ We see no association between PRS score and OS or PFS.
 
 This is the code to generate the predicted transcriptomic risk score and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
 
-```{r Predicted-TPRS score generation for overall survival, cache=TRUE, warning=FALSE}
+```{r Predicted-TPRS score generation for overall survival, cache=TRUE, warning=FALSE, echo=FALSE}
 ospredictedexpression <- read.table("Input/predixcan-predicted-output/os-results_predicted_expression.txt", header=TRUE, as.is = TRUE)
 ospredictedexpressionreference <- ospredictedexpression
 
@@ -298,7 +298,7 @@ PTRSscorefinal <- merge(PTRSscorefinal, famOS, by.x="indiv", by.y="fullID")
 PTRSscorefinal <- PTRSscorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
-```{r Cox regression of Predicted TRS and overall survival, cache=TRUE, warning=FALSE}
+```{r Cox regression of Predicted TRS and overall survival, cache=TRUE, warning=FALSE, echo=FALSE}
 survivalwhitePTRS <- merge(PTRSscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
 survivalwhitePTRS$phenotype <- ifelse(survivalwhitePTRS$phenotype=="2", "case", survivalwhitePTRS$phenotype)
 survivalwhitePTRS$phenotype <- ifelse(survivalwhitePTRS$phenotype=="1", 0, survivalwhitePTRS$phenotype)
@@ -315,7 +315,7 @@ ggforest(fit.coxphPTRS, data = survivalwhitePTRS)
 
 We see an association between PTRS (predicted transcriptomic) score and overall survival. This score incorporates the germline in both genes associated with risk (by weights) and in terms of the predicted transcriptome. 
 
-```{r Predicted-TPRS score generation for progression-free survival, cache=TRUE, warning=FALSE}
+```{r Predicted-TPRS score generation for progression-free survival, cache=TRUE, echo=FALSE, warning=FALSE}
 pfspredictedexpression <- read.table("Input/predixcan-predicted-output/pfs-results_predicted_expression.txt", header=TRUE, as.is = TRUE)
 pfspredictedexpressionreference <- pfspredictedexpression
 
@@ -363,7 +363,7 @@ PTRSscorefinal <- merge(PTRSscorefinal, famPFS, by.x="indiv", by.y="fullID")
 PTRSscorefinal <- PTRSscorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
-```{r Cox regression of Predicted TRS and recurrence, cache=TRUE, warning=FALSE}
+```{r Cox regression of Predicted TRS and recurrence, cache=TRUE, warning=FALSE, echo=FALSE}
 recurrencewhitePTRS <- merge(PTRSscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
 recurrencewhitePTRS$phenotype <- ifelse(recurrencewhitePTRS$phenotype=="2", "case", recurrencewhitePTRS$phenotype)
 recurrencewhitePTRS$phenotype <- ifelse(recurrencewhitePTRS$phenotype=="1", 0, recurrencewhitePTRS$phenotype)
@@ -384,7 +384,7 @@ We see no association between PTRS score and PFS.
 
 This is the code to generate the observed transcriptomic risk score and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
 
-```{r Observed-TPRS score generation, cache=TRUE, warning=FALSE}
+```{r Observed-TPRS score generation, cache=TRUE, warning=FALSE, echo=FALSE}
 osobservedexpression <- read.table("Input/TCGA-BRCA-RNA/TCGA-BRCA_mRNA.csv", header=TRUE, sep=",")
 
 samplesEURmatch <- famOS$fullID
@@ -453,7 +453,7 @@ OTRSscorefinal <- merge(OTRSscorefinal, famOS, by.x="indiv", by.y="fullID")
 OTRSscorefinal <- OTRSscorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
-```{r Cox regression of Observed TRS and overall survival, cache=TRUE, warning=FALSE}
+```{r Cox regression of Observed TRS and overall survival, cache=TRUE, warning=FALSE, echo=FALSE}
 survivalwhiteOTRS <- merge(OTRSscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
 
 #Cox regression of overall survival
@@ -465,7 +465,7 @@ fit.coxphOTRS <- coxph(surv_objectOTRS ~ survivalwhiteOTRS$tprs,
 ggforest(fit.coxphOTRS, data = survivalwhiteOTRS)
 ```
 
-```{r Observed-TPRS score generation for progression free survival, cache=TRUE, warning=FALSE}
+```{r Observed-TPRS score generation for progression free survival, cache=TRUE, echo=FALSE, warning=FALSE}
 pheno <- famPFS %>% select(fullID,phenotype)
 names(pheno) = c("SUBJID", "phenotype") 
 
@@ -488,7 +488,7 @@ OTRSscorefinal <- merge(OTRSscorefinal, famPFS, by.x="indiv", by.y="fullID")
 OTRSscorefinal <- OTRSscorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
-```{r Cox regression of Observed TRS and progression-free survival, cache=TRUE, warning=FALSE}
+```{r Cox regression of Observed TRS and progression-free survival, cache=TRUE, echo=FALSE, warning=FALSE}
 recurrencewhiteOTRS <- merge(OTRSscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
 
 #Cox regression of recurrence
@@ -505,7 +505,7 @@ There is a minimal signal that is not clinically significant and does not reach 
 #Survival variants: Predicted transcriptomic score
 This is the code to generate the predicted transcriptomic risk score (using survival GWAS as a weight) and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
 
-```{r Survival-weighted Predicted-TPRS score generation for overall survival, cache=TRUE,  warning=FALSE}
+```{r Survival-weighted Predicted-TPRS score generation for overall survival, echo=FALSE, cache=TRUE,  warning=FALSE}
 ospredictedexpressionssurv <- ospredictedexpressionreference 
 
 PTPRSsurvweights <- read.table("Input/spredixcan-output/BCAC2019_survival_spredixcan_GTExV8_mashr.csv", header=TRUE, sep=",")
@@ -552,7 +552,7 @@ PTRSsurvscorefinal <- merge(PTRSsurvscorefinal, famOS, by.x="indiv", by.y="fullI
 PTRSsurvscorefinal <- PTRSsurvscorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
-```{r Survival-weighted Cox regression of Predicted TRS and overall survival, cache=TRUE, warning=FALSE}
+```{r Survival-weighted Cox regression of Predicted TRS and overall survival, echo=FALSE, cache=TRUE, warning=FALSE}
 survivalwhitePTRSsurv <- merge(PTRSsurvscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
 survivalwhitePTRSsurv$phenotype <- ifelse(survivalwhitePTRSsurv$phenotype=="2", "case", survivalwhitePTRSsurv$phenotype)
 survivalwhitePTRSsurv$phenotype <- ifelse(survivalwhitePTRSsurv$phenotype=="1", 0, survivalwhitePTRSsurv$phenotype)
@@ -567,7 +567,7 @@ fit.coxphPTRSsurv <- coxph(surv_objectPTRSsurv ~ survivalwhitePTRSsurv$tprs,
 ggforest(fit.coxphPTRSsurv, data = survivalwhitePTRSsurv)
 ```
 
-```{r Survival-weighted Predicted-TPRS score generation for progression-free survival, cache=TRUE, warning=FALSE}
+```{r Survival-weighted Predicted-TPRS score generation for progression-free survival, echo=FALSE, cache=TRUE, warning=FALSE}
 pfspredictedexpressionsurv <- pfspredictedexpressionreference
 
 PTPRSsurvweights <- read.table("Input/spredixcan-output/BCAC2019_survival_spredixcan_GTExV8_mashr.csv", header=TRUE, sep=",")
@@ -614,7 +614,7 @@ PTRSsurvscorefinal <- merge(PTRSsurvscorefinal, famPFS, by.x="indiv", by.y="full
 PTRSsurvscorefinal <- PTRSsurvscorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
-```{r Survival-weighted Cox regression of Predicted TRS and recurrence, cache=TRUE, warning=FALSE}
+```{r Survival-weighted Cox regression of Predicted TRS and recurrence, cache=TRUE, echo=FALSE, warning=FALSE}
 recurrencewhitePTRSsurv <- merge(PTRSsurvscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
 recurrencewhitePTRSsurv$phenotype <- ifelse(recurrencewhitePTRSsurv$phenotype=="2", "case", recurrencewhitePTRSsurv$phenotype)
 recurrencewhitePTRSsurv$phenotype <- ifelse(recurrencewhitePTRSsurv$phenotype=="1", 0, recurrencewhitePTRSsurv$phenotype)
@@ -633,7 +633,7 @@ ggforest(fit.coxphPTRSsurv, data = recurrencewhitePTRSsurv)
 
 This is the code to generate the observed transcriptomic risk score (using survival GWAS as a weight) and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
 
-```{r Survival-weighted Observed-TPRS score generation, cache=TRUE, warning=FALSE}
+```{r Survival-weighted Observed-TPRS score generation, cache=TRUE, echo=FALSE, warning=FALSE}
 osobservedexpressionsurv_cleaned <- osobservedexpression_reference
 
 OTPRSsurvweights <- read.table("Input/spredixcan-output/BCAC2019_survival_spredixcan_GTExV8_mashr.csv", header=TRUE, sep=",")
@@ -676,7 +676,7 @@ OTRSsurvscorefinal <- merge(OTRSsurvscorefinal, famOS, by.x="indiv", by.y="fullI
 OTRSsurvscorefinal <- OTRSsurvscorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
-```{r Survival-weighted Cox regression of Observed TRS and overall survival, cache=TRUE, warning=FALSE}
+```{r Survival-weighted Cox regression of Observed TRS and overall survival, echo=FALSE, cache=TRUE, warning=FALSE}
 survivalwhiteOTRSsurv <- merge(OTRSsurvscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
 
 #Cox regression of overall survival
@@ -688,7 +688,7 @@ fit.coxphOTRSsurv <- coxph(surv_objectOTRSsurv ~ survivalwhiteOTRSsurv$tprs,
 ggforest(fit.coxphOTRSsurv, data = survivalwhiteOTRSsurv)
 ```
 
-```{r Survival-weighted Observed-TPRS score generation for progression free survival, cache=TRUE, warning=FALSE}
+```{r Survival-weighted Observed-TPRS score generation for progression free survival, echo=FALSE, cache=TRUE, warning=FALSE}
 pheno <- famPFS %>% select(fullID,phenotype)
 names(pheno) = c("SUBJID", "phenotype") 
 
@@ -711,7 +711,7 @@ OTRSsurvscorefinal <- merge(OTRSsurvscorefinal, famPFS, by.x="indiv", by.y="full
 OTRSsurvscorefinal <- OTRSsurvscorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
-```{r Survival-weighted Cox regression of Observed TRS and progression-free survival, cache=TRUE, warning=FALSE}
+```{r Survival-weighted Cox regression of Observed TRS and progression-free survival, echo=FALSE, cache=TRUE, warning=FALSE}
 recurrencewhiteOTRSsurv <- merge(OTRSsurvscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
 
 #Cox regression of recurrence
@@ -728,7 +728,7 @@ When survival is used as the weighting factor, there is no longer any associatio
 This is the code to generate the predicted transcriptomic risk score (using subtype-specific GWAS results and calculated for patients within that subtype) and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
 
 #Subtype-specific variants: LumA/ Predicted
-```{r LumA-specific Predicted-TPRS score generation for overall survival, cache=TRUE, warning=FALSE}
+```{r LumA-specific Predicted-TPRS score generation for overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
 ospredictedexpressionLumA <- ospredictedexpressionreference 
 LumA <- subtype_formatted %>% filter(pam50=="Luminal A")
 LumA <- LumA$submitter_id
@@ -777,7 +777,7 @@ PTRSLumAscorefinal <- merge(PTRSLumAscorefinal, famOS, by.x="indiv", by.y="fullI
 PTRSLumAscorefinal <- PTRSLumAscorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
-```{r LumA-specific Cox regression of Predicted TRS and overall survival, cache=TRUE, warning=FALSE}
+```{r LumA-specific Cox regression of Predicted TRS and overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
 survivalwhitePTRSLumA <- merge(PTRSLumAscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
 survivalwhitePTRSLumA$phenotype <- ifelse(survivalwhitePTRSLumA$phenotype=="2", "case", survivalwhitePTRSLumA$phenotype)
 survivalwhitePTRSLumA$phenotype <- ifelse(survivalwhitePTRSLumA$phenotype=="1", 0, survivalwhitePTRSLumA$phenotype)
@@ -793,7 +793,7 @@ ggforest(fit.coxphPTRSLumA, data = survivalwhitePTRSLumA)
 ```
 
 #Subtype-specific variants: LumB/ Predicted
-```{r LumB-specific Predicted-TPRS score generation for overall survival, cache=TRUE,  warning=FALSE}
+```{r LumB-specific Predicted-TPRS score generation for overall survival, echo=FALSE, cache=TRUE,  warning=FALSE}
 ospredictedexpressionLumB <- ospredictedexpressionreference 
 LumB <- subtype_formatted %>% filter(pam50=="Luminal B")
 LumB <- LumB$submitter_id
@@ -842,7 +842,7 @@ PTRSLumBscorefinal <- merge(PTRSLumBscorefinal, famOS, by.x="indiv", by.y="fullI
 PTRSLumBscorefinal <- PTRSLumBscorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
-```{r LumB-specific Cox regression of Predicted TRS and overall survival, cache=TRUE, warning=FALSE}
+```{r LumB-specific Cox regression of Predicted TRS and overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
 survivalwhitePTRSLumB <- merge(PTRSLumBscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
 survivalwhitePTRSLumB$phenotype <- ifelse(survivalwhitePTRSLumB$phenotype=="2", "case", survivalwhitePTRSLumB$phenotype)
 survivalwhitePTRSLumB$phenotype <- ifelse(survivalwhitePTRSLumB$phenotype=="1", 0, survivalwhitePTRSLumB$phenotype)
@@ -858,7 +858,7 @@ ggforest(fit.coxphPTRSLumB, data = survivalwhitePTRSLumB)
 ```
 
 #Subtype-specific variants: TNBC/ Predicted
-```{r TNBC-specific Predicted-TPRS score generation for overall survival, cache=TRUE, warning=FALSE}
+```{r TNBC-specific Predicted-TPRS score generation for overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
 ospredictedexpressionTNBC <- ospredictedexpressionreference 
 TNBC <- subtype_formatted %>% filter(pam50=="Basal-like")
 TNBC <- TNBC$submitter_id
@@ -905,7 +905,7 @@ PTRSTNBCscorefinal <- merge(PTRSTNBCscorefinal, famOS, by.x="indiv", by.y="fullI
 PTRSTNBCscorefinal <- PTRSTNBCscorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
-```{r TNBC-specific Cox regression of Predicted TRS and overall survival, cache=TRUE, warning=FALSE}
+```{r TNBC-specific Cox regression of Predicted TRS and overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
 survivalwhitePTRSTNBC <- merge(PTRSTNBCscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
 survivalwhitePTRSTNBC$phenotype <- ifelse(survivalwhitePTRSTNBC$phenotype=="2", "case", survivalwhitePTRSTNBC$phenotype)
 survivalwhitePTRSTNBC$phenotype <- ifelse(survivalwhitePTRSTNBC$phenotype=="1", 0, survivalwhitePTRSTNBC$phenotype)
@@ -921,7 +921,7 @@ ggforest(fit.coxphPTRSTNBC, data = survivalwhitePTRSTNBC)
 ```
 
 #Subtype-specific variants: HER2/ Predicted
-```{r HER2-specific Predicted-TPRS score generation for overall survival, cache=TRUE, warning=FALSE}
+```{r HER2-specific Predicted-TPRS score generation for overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
 ospredictedexpressionHER2 <- ospredictedexpressionreference 
 HER2 <- subtype_formatted %>% filter(pam50=="HER2-enriched")
 HER2 <- HER2$submitter_id
@@ -968,7 +968,7 @@ PTRSHER2scorefinal <- merge(PTRSHER2scorefinal, famOS, by.x="indiv", by.y="fullI
 PTRSHER2scorefinal <- PTRSHER2scorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
-```{r HER2-specific Cox regression of Predicted TRS and overall survival, cache=TRUE, warning=FALSE}
+```{r HER2-specific Cox regression of Predicted TRS and overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
 survivalwhitePTRSHER2 <- merge(PTRSHER2scorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
 survivalwhitePTRSHER2$phenotype <- ifelse(survivalwhitePTRSHER2$phenotype=="2", "case", survivalwhitePTRSHER2$phenotype)
 survivalwhitePTRSHER2$phenotype <- ifelse(survivalwhitePTRSHER2$phenotype=="1", 0, survivalwhitePTRSHER2$phenotype)
@@ -984,7 +984,7 @@ ggforest(fit.coxphPTRSHER2, data = survivalwhitePTRSHER2)
 ```
 
 #Combined subtype-specific contribution
-```{r Subtype-specific Cox regression of Predicted TRS and overall survival, cache=TRUE, warning=FALSE}
+```{r Subtype-specific Cox regression of Predicted TRS and overall survival, echo=FALSE, cache=TRUE, warning=FALSE}
 survivalwhitesubtype <- survivalwhitePTRS
 temp1 <- PTRSLumAscorefinal %>% select(indiv, tprs)
 survivalwhitesubtype <- merge(survivalwhitesubtype, temp1, by.x="indiv", by.y="indiv", all.x=TRUE)
@@ -1072,7 +1072,7 @@ as.data.frame(res)
 No specific subtype (which are drived from existing RNA subtype methods) drove the score performance, but we did see that the score performance improved stratification among patients within the Basal and HER2 groups given the interaction plots. This is in contrast to existing scoring methods, which typically work best in Luminal A/B cancers. 
 
 #Combined scores + clinical data
-```{r Cox regression of combined methods and overall survival, cache=TRUE, warning=FALSE}
+```{r Cox regression of combined methods and overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
 mergePTRS <- survivalwhitePTRS %>% dplyr::select (indiv, tprs)
 colnames(mergePTRS) <- c("indiv", "PTRS")
 
@@ -1167,7 +1167,7 @@ fit.coxphall <- coxph(surv_objectall ~ OS_European$Age+OS_European$AJCCN.Nodal_S
 ggforest(fit.coxphall, data = OS_European)
 ```
 
-```{r Cox regression of combined methods and progression-free survival, cache=TRUE, warning=FALSE}
+```{r Cox regression of combined methods and progression-free survival, echo=FALSE, cache=TRUE, warning=FALSE}
 mergePTRS <- recurrencewhitePTRS %>% dplyr::select (indiv, tprs)
 colnames(mergePTRS) <- c("indiv", "PTRS")
 
