@@ -11,7 +11,7 @@ output:
     theme: spacelab
     highlight: textmate
 ---
-```{r DATA setup, cache=TRUE, warning=FALSE, include=FALSE, echo=FALSE}
+```{r DATA setup, warning=FALSE, include=FALSE, echo=FALSE}
 rm(list = ls())
 library(tidyverse)
 library(dplyr)
@@ -26,7 +26,7 @@ library(glmnet)
 library(survival)
 library(factoextra)
 library(flashClust)
-
+knitr::opts_chunk$set(autodep = TRUE)
 options(datatable.fread.datatable = F)
 options(stringsAsFactors = F)
 panderOptions('table.split.table', Inf)
@@ -226,7 +226,7 @@ surv_object <- Surv(time=survivalwhite$oss.months, event=as.numeric(survivalwhit
 fit.coxph <- coxph(surv_object ~ survivalwhite$score,
                    data = survivalwhite)
 
-ggforest(fit.coxph, data = survivalwhite)
+ggforest(fit.coxph, data = survivalwhite, main="Polygenic risk score in overall survival in European ancestry patients")
 ```
 
 ```{r Cox regression of PRS on recurrence, cache=TRUE, warning=FALSE, echo=FALSE}
@@ -241,7 +241,7 @@ surv_object_r <- Surv(time=recurrencewhite$pfs.months, event=as.numeric(recurren
 fit.coxph_r <- coxph(surv_object_r ~ recurrencewhite$score,
                    data = recurrencewhite)
 
-ggforest(fit.coxph_r, data = recurrencewhite)
+ggforest(fit.coxph_r, data = recurrencewhite, main="Polygenic risk score in progression-free survival in European ancestry patients")
 ```
 
 We see no association between PRS score and OS or PFS. 
@@ -311,7 +311,7 @@ surv_objectPTRS <- Surv(time=survivalwhitePTRS$oss.months, event=as.numeric(surv
 fit.coxphPTRS <- coxph(surv_objectPTRS ~ survivalwhitePTRS$tprs,
                    data = survivalwhitePTRS)
 
-ggforest(fit.coxphPTRS, data = survivalwhitePTRS)
+ggforest(fit.coxphPTRS, data = survivalwhitePTRS, main="Predicted transcriptomic score in overall survival in European ancestry patients")
 ```
 
 We see an association between PTRS (predicted transcriptomic) score and overall survival. This score incorporates the germline in both genes associated with risk (by weights) and in terms of the predicted transcriptome. 
@@ -376,7 +376,7 @@ surv_objectPTRS <- Surv(time=recurrencewhitePTRS$pfs.months, event=as.numeric(re
 fit.coxphPTRS <- coxph(surv_objectPTRS ~ recurrencewhitePTRS$tprs,
                    data = recurrencewhitePTRS)
 
-ggforest(fit.coxphPTRS, data = recurrencewhitePTRS)
+ggforest(fit.coxphPTRS, data = recurrencewhitePTRS, main="Predicted transcriptomic score in progression-free survival in European ancestry patients")
 ```
 
 We see no association between PTRS score and PFS. 
@@ -463,7 +463,7 @@ surv_objectOTRS <- Surv(time=survivalwhiteOTRS$oss.months, event=as.numeric(surv
 fit.coxphOTRS <- coxph(surv_objectOTRS ~ survivalwhiteOTRS$tprs,
                    data = survivalwhiteOTRS)
 
-ggforest(fit.coxphOTRS, data = survivalwhiteOTRS)
+ggforest(fit.coxphOTRS, data = survivalwhiteOTRS, main="Observed transcriptomic score in overall survival in European ancestry patients")
 ```
 
 ```{r Observed-TPRS score generation for progression free survival, cache=TRUE, echo=FALSE, warning=FALSE}
@@ -498,7 +498,7 @@ surv_objectOTRS <- Surv(time=recurrencewhiteOTRS$pfs.months, event=as.numeric(re
 fit.coxphOTRS <- coxph(surv_objectOTRS ~ recurrencewhiteOTRS$tprs,
                    data = recurrencewhiteOTRS)
 
-ggforest(fit.coxphOTRS, data = recurrencewhiteOTRS)
+ggforest(fit.coxphOTRS, data = recurrencewhiteOTRS, main="Observed transcriptomic score in progression-free survival in European ancestry patients")
 ```
 
 There is a minimal signal that is not clinically significant and does not reach statistical significance, but this is the next closest signal of score performance. 
@@ -566,7 +566,7 @@ surv_objectPTRSsurv <- Surv(time=survivalwhitePTRSsurv$oss.months, event=as.nume
 fit.coxphPTRSsurv <- coxph(surv_objectPTRSsurv ~ survivalwhitePTRSsurv$tprs,
                    data = survivalwhitePTRSsurv)
 
-ggforest(fit.coxphPTRSsurv, data = survivalwhitePTRSsurv)
+ggforest(fit.coxphPTRSsurv, data = survivalwhitePTRSsurv, main="Predicted transcriptomic score with survival GWAS\n overall survival, EUR ancestry")
 ```
 
 ```{r Survival-weighted Predicted-TPRS score generation for progression-free survival, echo=FALSE, cache=TRUE, warning=FALSE}
@@ -628,7 +628,7 @@ surv_objectPTRSsurv <- Surv(time=recurrencewhitePTRSsurv$pfs.months, event=as.nu
 fit.coxphPTRSsurv <- coxph(surv_objectPTRSsurv ~ recurrencewhitePTRSsurv$tprs,
                    data = recurrencewhitePTRSsurv)
 
-ggforest(fit.coxphPTRSsurv, data = recurrencewhitePTRSsurv)
+ggforest(fit.coxphPTRSsurv, data = recurrencewhitePTRSsurv, main="Predicted transcriptomic score with survival GWAS\n progression-free survival, EUR ancestry")
 ```
 
 ## Survival-related variants: Observed transcriptomic score (OTRS)
@@ -687,7 +687,7 @@ surv_objectOTRSsurv <- Surv(time=survivalwhiteOTRSsurv$oss.months, event=as.nume
 fit.coxphOTRSsurv <- coxph(surv_objectOTRSsurv ~ survivalwhiteOTRSsurv$tprs,
                    data = survivalwhiteOTRSsurv)
 
-ggforest(fit.coxphOTRSsurv, data = survivalwhiteOTRSsurv)
+ggforest(fit.coxphOTRSsurv, data = survivalwhiteOTRSsurv, main="Observed transcriptomic score with survival GWAS\n overall survival, EUR ancestry")
 ```
 
 ```{r Survival-weighted Observed-TPRS score generation for progression free survival, echo=FALSE, cache=TRUE, warning=FALSE}
@@ -722,7 +722,7 @@ surv_objectOTRSsurv <- Surv(time=recurrencewhiteOTRSsurv$pfs.months, event=as.nu
 fit.coxphOTRSsurv <- coxph(surv_objectOTRSsurv ~ recurrencewhiteOTRSsurv$tprs,
                    data = recurrencewhiteOTRSsurv)
 
-ggforest(fit.coxphOTRSsurv, data = recurrencewhiteOTRSsurv)
+ggforest(fit.coxphOTRSsurv, data = recurrencewhiteOTRSsurv, main="Observed transcriptomic score with survival GWAS\n progression-free survival, EUR ancestry")
 ```
 
 When survival is used as the weighting factor, there is no longer any association between any score and survival outcomes.
@@ -793,7 +793,7 @@ surv_objectPTRSLumA <- Surv(time=survivalwhitePTRSLumA$oss.months, event=as.nume
 fit.coxphPTRSLumA <- coxph(surv_objectPTRSLumA ~ survivalwhitePTRSLumA$tprs,
                    data = survivalwhitePTRSLumA)
 
-ggforest(fit.coxphPTRSLumA, data = survivalwhitePTRSLumA)
+ggforest(fit.coxphPTRSLumA, data = survivalwhitePTRSLumA, main="Predicted transcriptomic score with Luminal A GWAS + subtype in TCGA\n overall survival, EUR ancestry")
 ```
 
 ## LumB/ Predicted (PTRS)
@@ -858,7 +858,7 @@ surv_objectPTRSLumB <- Surv(time=survivalwhitePTRSLumB$oss.months, event=as.nume
 fit.coxphPTRSLumB <- coxph(surv_objectPTRSLumB ~ survivalwhitePTRSLumB$tprs,
                    data = survivalwhitePTRSLumB)
 
-ggforest(fit.coxphPTRSLumB, data = survivalwhitePTRSLumB)
+ggforest(fit.coxphPTRSLumB, data = survivalwhitePTRSLumB, main="Predicted transcriptomic score with Luminal B GWAS + subtype in TCGA\n overall survival, EUR ancestry")
 ```
 
 ## TNBC/ Predicted (PTRS)
@@ -921,7 +921,7 @@ surv_objectPTRSTNBC <- Surv(time=survivalwhitePTRSTNBC$oss.months, event=as.nume
 fit.coxphPTRSTNBC <- coxph(surv_objectPTRSTNBC ~ survivalwhitePTRSTNBC$tprs,
                    data = survivalwhitePTRSTNBC)
 
-ggforest(fit.coxphPTRSTNBC, data = survivalwhitePTRSTNBC)
+ggforest(fit.coxphPTRSTNBC, data = survivalwhitePTRSTNBC, main="Predicted transcriptomic score with TNBC GWAS + subtype in TCGA\n overall survival, EUR ancestry")
 ```
 
 ## HER2/ Predicted (PTRS)
@@ -984,7 +984,7 @@ surv_objectPTRSHER2 <- Surv(time=survivalwhitePTRSHER2$oss.months, event=as.nume
 fit.coxphPTRSHER2 <- coxph(surv_objectPTRSHER2 ~ survivalwhitePTRSHER2$tprs,
                    data = survivalwhitePTRSHER2)
 
-ggforest(fit.coxphPTRSHER2, data = survivalwhitePTRSHER2)
+ggforest(fit.coxphPTRSHER2, data = survivalwhitePTRSHER2, main="Predicted transcriptomic score with HER2+ GWAS + subtype in TCGA\n overall survival, EUR ancestry")
 ```
 
 ## Combined subtype-specific contribution (PTRS)
@@ -1018,16 +1018,7 @@ survivalwhitesubtype$inther2 <- survivalwhitesubtype$tprs.x*survivalwhitesubtype
 #Cox regression of overall survival by subtype
 surv_objectPTRSbysubtype <- Surv(time=survivalwhitesubtype$oss.months, event=as.numeric(survivalwhitesubtype$phenotype))
 fit.coxphPTRSbysubtype <- coxph(surv_objectPTRSbysubtype ~
-  survivalwhitesubtype$lumayn+
-  survivalwhitesubtype$lumbyn+
-  survivalwhitesubtype$basalyn+
-  survivalwhitesubtype$her2yn+
-  survivalwhitesubtype$tprs.x,
-                   data = survivalwhitesubtype)
-ggforest(fit.coxphPTRSbysubtype, data = survivalwhitesubtype)
-
-surv_objectPTRSbysubtype <- Surv(time=survivalwhitesubtype$oss.months, event=as.numeric(survivalwhitesubtype$phenotype))
-fit.coxphPTRSbysubtype <- coxph(surv_objectPTRSbysubtype ~
+  survivalwhitesubtype$tprs.x+
   survivalwhitesubtype$lumayn+
   survivalwhitesubtype$lumbyn+
   survivalwhitesubtype$basalyn+
@@ -1037,43 +1028,10 @@ fit.coxphPTRSbysubtype <- coxph(surv_objectPTRSbysubtype ~
   survivalwhitesubtype$intbasal+
   survivalwhitesubtype$inther2,
                    data = survivalwhitesubtype)
-ggforest(fit.coxphPTRSbysubtype, data = survivalwhitesubtype)
-
-covariates <- c("intluma",  "intlumb", "intbasal", "inther2")
-
-class(survivalwhitesubtype$intluma) = 'numeric'
-class(survivalwhitesubtype$intlumb) = 'numeric'
-class(survivalwhitesubtype$intbasal) = 'numeric'
-class(survivalwhitesubtype$inther2) = 'numeric'
-
-univ_formulas <- sapply(covariates,
-                        function(x) as.formula(paste('Surv(survivalwhitesubtype$oss.months, as.numeric(survivalwhitesubtype$phenotype))~', x)))
-
-univ_models <- lapply( univ_formulas, function(x){coxph(x, data = survivalwhitesubtype)})
-
-# Extract data 
-univ_results <- lapply(univ_models,
-                       function(x){ 
-                          x <- summary(x)
-                          p.value<-signif(x$wald["pvalue"], digits=2)
-                          wald.test<-signif(x$wald["test"], digits=2)
-                          beta<-signif(x$coef[1], digits=2);#coeficient beta
-                          HR <-signif(x$coef[2], digits=2);#exp(beta)
-                          HR.confint.lower <- signif(x$conf.int[,"lower .95"], 2)
-                          HR.confint.upper <- signif(x$conf.int[,"upper .95"],2)
-                          HR <- paste0(HR, " (", 
-                                       HR.confint.lower, "-", HR.confint.upper, ")")
-                          res<-c(beta, HR, wald.test, p.value)
-                          names(res)<-c("beta", "HR (95% CI for HR)", "wald.test", 
-                                        "p.value")
-                          return(res)
-                          #return(exp(cbind(coef(x),confint(x))))
-                         })
-res <- t(as.data.frame(univ_results, check.names = FALSE))
-as.data.frame(res)
+ggforest(fit.coxphPTRSbysubtype, data = survivalwhitesubtype, main="Predicted transcriptomic score from all patients\n subtype as covariate/interaction, overall survival, EUR ancestry")
 ```
 
-No specific subtype (which are drived from existing RNA subtype methods) drove the score performance, but we did see that the score performance improved stratification among patients within the Basal and HER2 groups given the interaction plots. This is in contrast to existing scoring methods, which typically work best in Luminal A/B cancers. 
+No specific subtype (which are drived from existing RNA subtype methods) drove the score performance (although luminal B had the strongest effect). RNA-based subtype resulted in decreased efficacy of score performance. 
 
 # Combined scores + clinical data
 
@@ -1158,19 +1116,13 @@ univ_results <- lapply(univ_models,
 res <- t(as.data.frame(univ_results, check.names = FALSE))
 as.data.frame(res)
 
-surv_objectall <- Surv(time=survivalwhiteall$oss.months, event=as.numeric(survivalwhiteall$phenotype))
-
-fit.coxphall <- coxph(surv_objectall ~ survivalwhiteall$score+survivalwhiteall$PTRS+survivalwhiteall$OTRS,
-                   data = survivalwhiteall)
-
-ggforest(fit.coxphall, data = survivalwhiteall)
-
 OS_European <- survivalwhiteall %>% select(oss.months, phenotype, age, AJCCN, AJCCT, AJCCM, hr, her2, PTRS)
 colnames(OS_European) = c("oss.months", "phenotype", "Age", "AJCCN.Nodal_Status", "AJCC.Tumor_Size", "AJCC.Metastasis", "Hormone.Receptor.Pos", "HER2.Receptor.Pos", "Predicted_Transcriptomic_Score")
+
 surv_objectall <- Surv(time=OS_European$oss.months, event=as.numeric(OS_European$phenotype))
 
 fit.coxphall <- coxph(surv_objectall ~ OS_European$Age+OS_European$AJCCN.Nodal_Status+OS_European$AJCC.Tumor_Size+OS_European$AJCC.Metastasis+OS_European$Hormone.Receptor.Pos+OS_European$HER2.Receptor.Pos+OS_European$Predicted_Transcriptomic_Score, data=OS_European) 
-ggforest(fit.coxphall, data = OS_European)
+ggforest(fit.coxphall, data = OS_European, main="Hazard ratios of all data in TCGA patients\n overall survival, EUR ancestry")
 ```
 
 ## Clinical: Progression-free survival
@@ -1293,20 +1245,13 @@ univ_results <- lapply(univ_models,
 res <- t(as.data.frame(univ_results, check.names = FALSE))
 as.data.frame(res)
 
-surv_objectall <- Surv(time=recurrencewhiteall$oss.months, event=as.numeric(recurrencewhiteall$phenotype))
-
-fit.coxphall <- coxph(surv_objectall ~ recurrencewhiteall$score+recurrencewhiteall$PTRS+recurrencewhiteall$OTRS,
-                   data = recurrencewhiteall)
-
-ggforest(fit.coxphall, data = recurrencewhiteall)
-
 PFS_European <- recurrencewhiteall %>% select(oss.months, phenotype, age, AJCCN, AJCCT, AJCCM, hr, her2, score, PTRS, OTRS)
 colnames(PFS_European) = c("oss.months", "phenotype", "Age", "AJCCN.Nodal_Status", "AJCC.Tumor_Size", "AJCC.Metastasis", "Hormone.Receptor.Pos", "HER2.Receptor.Pos", "Polygenic_Score", "Predicted_Transcriptomic_Score", "Observed_Transcriptomic_Score")
 surv_objectall <- Surv(time=PFS_European$oss.months, event=as.numeric(PFS_European$phenotype))
 
 fit.coxphall <- coxph(surv_objectall ~ PFS_European$Age+PFS_European$AJCCN.Nodal_Status+PFS_European$AJCC.Tumor_Size+PFS_European$Hormone.Receptor.Pos+PFS_European$HER2.Receptor.Pos+PFS_European$Polygenic_Score+PFS_European$Predicted_Transcriptomic_Score+PFS_European$Observed_Transcriptomic_Score, data=PFS_European) 
 
-ggforest(fit.coxphall, data = PFS_European)
+ggforest(fit.coxphall, data = PFS_European, main="Predicted transcriptomic score from all patients\n subtype as covariate/interaction, progression-free survival, EUR ancestry")
 ```
 
 When combined with clinical data, the score performance of PTRS in overall survival remained persistent, offering an interesting signal to study further. The performance of OTRS in PFS was actually improved with clinical data (more consistent with real-world data), but this was no longer significant with incorporation of PAM50 data, suggesting that the latter encompasses the same information that the former does and the germline does not add specific information in that context.
