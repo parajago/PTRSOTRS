@@ -1,0 +1,197 @@
+---
+title: "yanyu-mixed-effect-model"
+author: "Yanyu Liang"
+date: "2020-11-02"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+$$
+\newcommand{\pbm}{\text{PBM}}
+$$
+
+```{r setup}
+library(dplyr)
+library(ggplot2)
+set.seed(2020)
+```
+
+```{r functions}
+inv_norm = function(x, offset = 1) {
+  r = rank(x, ties.method = 'average')
+  g = r / (length(r) + offset)
+  o = qnorm(g)
+  return(o)
+}
+```
+
+## Introduction
+
+In this analysis report, the goal is to answer the question: is predicted transcriptome predictive for survival time. 
+So answer this question, we build mixed effect model for survival time using Proportional Hazard Model.
+More introductory details are discussed [here](https://github.com/hakyimlab/yanyu-notebook/blob/master/notes/date_092320.Rmd). 
+In short, the model is
+$$\begin{aligned}
+  T \sim &\sim \pbm(\beta_j G_j + \sum b_k C_k) \\
+  \beta_j &\sim N(0, \sigma_G^2) 
+\end{aligned}$$
+
+And we are interested in testing if $\sigma_G^2$ is non-zero.
+We use the estimated $\sigma_G^2$ as the test statistic and perform permutation test to calculate the significance.
+
+## Load data
+
+```{r}
+meta_file = '~/Downloads/BRCA-OS-EUR-clinical.txt'
+pred_expr_file = '~/Downloads/os-results_predicted_expression.txt'
+parse_cmd = paste0("cat ", meta_file, " |sed 's#ALIVE OR DEAD TUMOR FREE#ALIVE_OR_DEAD_TUMOR_FREE#g' | sed 's#Luminal #Luminal_#g' | sed 's# (#(#g' | sed 's#DEAD WITH TUMOR#DEAD_WITH_TUMOR#g'")
+ptrs = data.table::fread(pred_expr_file, data.table = F)
+df = data.table::fread(cmd = parse_cmd, sep = ' ', data.table = F)
+
+df_cleaned = df[, c('oss.months', 'oss.status', 'subtypefinal', 'age', 'fullID')]
+df_cleaned$subtypefinal[ is.na(df_cleaned$subtypefinal) ] = 'unknown'
+df_cleaned %>% ggplot() + geom_histogram(aes(x = oss.months)) + facet_wrap(~subtypefinal, scales = 'free_y') + ggtitle('Survival months by subtype')
+df_cleaned %>% ggplot() + geom_histogram(aes(x = age)) + facet_wrap(~subtypefinal, scales = 'free_y') + ggtitle('Age by subtype')
+df_cleaned %>% ggplot() + geom_bar(aes(x = oss.status)) + facet_wrap(~subtypefinal, scales = 'free_y') + ggtitle('Status by subtype')
+ptrs = ptrs[match(df_cleaned$fullID, ptrs$FID), ]
+```
+
+## Construct predicted expression correlation matrix
+
+I do inverse normalization and compute the sample correlation.
+
+```{r}
+ptrs_mat = as.matrix(ptrs[, c(-1, -2)])
+ptrs_mat = apply(ptrs_mat, 2, inv_norm)
+ptrs_cor = ptrs_mat %*% t(ptrs_mat) / ncol(ptrs_mat)
+image(ptrs_cor[1:10, 1:10])
+```
+
+## Prepare covariate
+
+For transparency, I convert the categorical variables, `subtypefinal`, to one-hot vector manually. 
+
+```{r}
+df_subtype = data.frame(subtype = unique(df_cleaned$subtypefinal))
+df_subtype$code = 1 : nrow(df_subtype)
+df_subtype_mat = matrix(0, nrow = nrow(df_cleaned), ncol = nrow(df_subtype))
+for(i in 1 : nrow(df_cleaned)) {
+  kk = df_cleaned$subtypefinal[i]
+  code = df_subtype$code[df_subtype$subtype == kk]
+  df_subtype_mat[i, code] = 1
+}
+# drop the first category in df_subtype_mat since we take contrast against the first category
+xcovar = df_subtype_mat[, -1]
+# add age
+xcovar = cbind(xcovar, df_cleaned$age)
+```
+
+## Prepare the survival matrix
+
+```{r}
+status = rep(0, nrow(df_cleaned))
+status[df_cleaned$oss.status == 'DECEASED'] = 1
+df_sv = cbind(df_cleaned$oss.months, status)
+```
+
+## Run `coxmeg`
+
+```{r}
+cache_rds = 'cached-yanyu-mixed-effect-model.rds'
+if(!file.exists(cache_rds)) {
+  solver_wrapper = function(y, corr, covar, permutation = F) {
+    if(isTRUE(permutation)) {
+      n = nrow(y)
+      perm_idx = sample(1 : n)
+      y = y[perm_idx, ]
+      covar = covar[perm_idx, ]
+    }
+    mod = coxmeg::coxmeg(y, corr = corr, X = covar, type = 'dense', verbose = F)
+    list(tau = mod$tau, loglik = mod$int_ll)
+  }
+  res = solver_wrapper(df_sv, ptrs_cor, xcovar)
+  tau_obs = res$tau
+  ll_obs = res$loglik
+  nrepeat = 1000
+  tau_perm = c()
+  ll_perm = c()
+  for(i in 1 : nrepeat) {
+    cat('progress = ', i, '/', nrepeat, '\r')
+    res = solver_wrapper(df_sv, ptrs_cor, xcovar, permutation = T)
+    tau_perm = c(tau_perm, res$tau)
+    ll_perm = c(ll_perm, res$loglik)
+  }
+  saveRDS(list(tau_obs = tau_obs, tau_perm = tau_perm), cache_rds)
+} else {
+  tmp = readRDS(cache_rds)
+  tau_obs = tmp$tau_obs
+  tau_perm = tmp$tau_perm
+}
+hist(tau_perm) ; abline(v = tau_obs, col = 'red')
+message('p-value = ', mean(tau_obs <= tau_perm))
+```
+
+
+Mixed effect based Cox regression gives non-significant result. 
+It means that the predicted transcriptome do not significantly captures the variation in survival time.
+With this negative result, we want to go back to the previous simplified model: $\log(T) ~ N(Xb, \sigma_g \text{PTM} + \sigma_e^2 I)$.
+
+Before doing so, we want to take a look at the patient status versus the patient survival time observation. 
+
+```{r}
+df_cleaned %>% ggplot() + geom_boxplot(aes(x = oss.status, y = oss.months))
+```
+
+One thing to notice is that the survival time is on averge higher in censored individuals than the time in the individuals who have died. (To me it is somewhat unexpected ..)
+
+<!-- ```{r} -->
+<!-- test = cbind(data.frame(stime = df_sv[, 1], status = df_sv[, 2]), data.frame(xcovar)) -->
+<!-- mod = survival::coxph(survival::Surv(stime, status) ~ X1 + X2 + X3 + X4 + X5, test) -->
+
+<!-- mod2 = coxmeg::coxmeg(df_sv, corr = ptrs_cor, X = xcovar, type = 'dense', verbose = T) -->
+<!-- ``` -->
+
+Regardless, we carry out the gcta analysis using log(survival time) (with standardization) as outcome. 
+
+```{r}
+# library(reticulate)
+# sys = import('sys')
+# sys$path = c(sys$path, '../misc-tools/pyemma/')
+# pyemma = import('pyemma')
+good_ind = df_sv[, 1] > 0
+df_sv_cleaned = df_sv[good_ind, ]
+qq = log(df_sv_cleaned[, 1])
+qq = (qq - mean(qq)) / sd(qq)
+ptrs_cor_cleaned = ptrs_cor[, good_ind][good_ind, ]
+xcovar_cleaned = xcovar[good_ind, ]
+xcovar_cleaned = cbind(rep(1, nrow(xcovar_cleaned)), xcovar_cleaned)
+# eigtmp = pyemma$pyemma_mle_mat_fac(ptrs_cor_cleaned)
+# val = eigtmp[[1]]
+# vec = eigtmp[[2]]
+# eigtmp = pyemma$pyemma_reml_mat_fac(xcovar_cleaned, ptrs_cor_cleaned)
+# val_r = eigtmp[[1]]
+# vec_r = eigtmp[[2]]
+# out = pyemma$pyemma_reml(as.array(qq, dim = 1), vec_r, val_r, vec, val, xcovar_cleaned)
+
+write_GRMgz = function(grm, filename, ids, ncolX)
+{
+ #X[upper.tri(X,diag=TRUE)]
+ # grm = X %*% t(X) / ncol(X)
+ rmat = row(grm)
+ cmat = col(grm)
+ omat = cbind(cmat[upper.tri(cmat,diag=TRUE)],rmat[upper.tri(rmat,diag=TRUE)],ncolX,grm[upper.tri(grm,diag=TRUE)])
+ readr::write_tsv(data.frame(omat),path=filename,col_names = FALSE)
+ if(length(list.files(paste0(filename,".gz") ) )>0) system(paste0("rm ",filename,".gz"))
+ system(paste0('cat ', filename, ' | gzip  > ', filename, '.gz'))
+ readr::write_tsv(data.frame(ids,ids),path=paste0(filename,".id"),col_names = FALSE)
+}
+iid = paste0('indiv', 1 : nrow(xcovar_cleaned))
+write_GRMgz(ptrs_cor_cleaned, 'tmp.grm', iid, ncolX = ncol(ptrs_mat))
+write.table(data.frame(iid, iid, qq), 'tmp.pheno', quo = F, col = F, row = F, sep = '\t')
+write.table(cbind(iid, iid, xcovar_cleaned[, -1]), 'tmp.covar', quo = F, col = F, row = F, sep = '\t')
+cmd = '~/Documents/softwares/gcta_1.92.4beta_mac/bin/gcta64 --grm-gz tmp --reml --pheno tmp.pheno --out tmp'
+system(cmd)
+hsq = read.delim2('tmp.hsq')
+hsq %>% pander::pander()
+```
