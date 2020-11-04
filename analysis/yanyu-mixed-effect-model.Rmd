@@ -155,10 +155,10 @@ One thing to notice is that the survival time is on averge higher in censored in
 Regardless, we carry out the gcta analysis using log(survival time) (with standardization) as outcome. 
 
 ```{r}
-# library(reticulate)
-# sys = import('sys')
-# sys$path = c(sys$path, '../misc-tools/pyemma/')
-# pyemma = import('pyemma')
+library(reticulate)
+sys = import('sys')
+sys$path = c(sys$path, '../misc-tools/pyemma/')
+pyemma = import('pyemma')
 good_ind = df_sv[, 1] > 0
 df_sv_cleaned = df_sv[good_ind, ]
 qq = log(df_sv_cleaned[, 1])
@@ -166,14 +166,14 @@ qq = (qq - mean(qq)) / sd(qq)
 ptrs_cor_cleaned = ptrs_cor[, good_ind][good_ind, ]
 xcovar_cleaned = xcovar[good_ind, ]
 xcovar_cleaned = cbind(rep(1, nrow(xcovar_cleaned)), xcovar_cleaned)
-# eigtmp = pyemma$pyemma_mle_mat_fac(ptrs_cor_cleaned)
-# val = eigtmp[[1]]
-# vec = eigtmp[[2]]
-# eigtmp = pyemma$pyemma_reml_mat_fac(xcovar_cleaned, ptrs_cor_cleaned)
-# val_r = eigtmp[[1]]
-# vec_r = eigtmp[[2]]
-# out = pyemma$pyemma_reml(as.array(qq, dim = 1), vec_r, val_r, vec, val, xcovar_cleaned)
-
+eigtmp = pyemma$pyemma_mle_mat_fac(ptrs_cor_cleaned)
+val = eigtmp[[1]]
+vec = eigtmp[[2]]
+eigtmp = pyemma$pyemma_reml_mat_fac(xcovar_cleaned, ptrs_cor_cleaned)
+val_r = eigtmp[[1]]
+vec_r = eigtmp[[2]]
+out = pyemma$pyemma_reml(as.array(qq, dim = 1), vec_r, val_r, vec, val, xcovar_cleaned)
+out %>% pander::pander()
 write_GRMgz = function(grm, filename, ids, ncolX)
 {
  #X[upper.tri(X,diag=TRUE)]
@@ -190,8 +190,201 @@ iid = paste0('indiv', 1 : nrow(xcovar_cleaned))
 write_GRMgz(ptrs_cor_cleaned, 'tmp.grm', iid, ncolX = ncol(ptrs_mat))
 write.table(data.frame(iid, iid, qq), 'tmp.pheno', quo = F, col = F, row = F, sep = '\t')
 write.table(cbind(iid, iid, xcovar_cleaned[, -1]), 'tmp.covar', quo = F, col = F, row = F, sep = '\t')
-cmd = '~/Documents/softwares/gcta_1.92.4beta_mac/bin/gcta64 --grm-gz tmp --reml --pheno tmp.pheno --out tmp'
+cmd = '~/Documents/softwares/gcta_1.92.4beta_mac/bin/gcta64 --grm-gz tmp --reml --qcovar tmp.covar --pheno tmp.pheno --out tmp'
 system(cmd)
 hsq = read.delim2('tmp.hsq')
 hsq %>% pander::pander()
+```
+
+To see if the above result is driven by dead samples, we exclude these samples and rerun the analysis.
+
+```{r}
+# library(reticulate)
+# sys = import('sys')
+# sys$path = c(sys$path, '../misc-tools/pyemma/')
+# pyemma = import('pyemma')
+good_ind = df_sv[, 1] > 0 & df_sv[, 2] == 0
+df_sv_cleaned = df_sv[good_ind, ]
+qq = log(df_sv_cleaned[, 1])
+qq = (qq - mean(qq)) / sd(qq)
+ptrs_cor_cleaned = ptrs_cor[, good_ind][good_ind, ]
+xcovar_cleaned = xcovar[good_ind, ]
+xcovar_cleaned = cbind(rep(1, nrow(xcovar_cleaned)), xcovar_cleaned)
+eigtmp = pyemma$pyemma_mle_mat_fac(ptrs_cor_cleaned)
+val = eigtmp[[1]]
+vec = eigtmp[[2]]
+eigtmp = pyemma$pyemma_reml_mat_fac(xcovar_cleaned, ptrs_cor_cleaned)
+val_r = eigtmp[[1]]
+vec_r = eigtmp[[2]]
+out = pyemma$pyemma_reml(as.array(qq, dim = 1), vec_r, val_r, vec, val, xcovar_cleaned)
+out %>% pander::pander()
+iid = paste0('indiv', 1 : nrow(xcovar_cleaned))
+write_GRMgz(ptrs_cor_cleaned, 'tmp2.grm', iid, ncolX = ncol(ptrs_mat))
+write.table(data.frame(iid, iid, qq), 'tmp2.pheno', quo = F, col = F, row = F, sep = '\t')
+write.table(cbind(iid, iid, xcovar_cleaned[, -1]), 'tmp2.covar', quo = F, col = F, row = F, sep = '\t')
+cmd = '~/Documents/softwares/gcta_1.92.4beta_mac/bin/gcta64 --grm-gz tmp2 --reml --qcovar tmp2.covar --pheno tmp2.pheno --out tmp2'
+system(cmd)
+hsq = read.delim2('tmp2.hsq')
+hsq %>% pander::pander()
+```
+
+Furthermore, we try out using genotype GRM to calculate the chip h2 of log survival time in living individuals.
+
+```{r}
+good_ind = df_sv[, 1] > 0 & df_sv[, 2] == 0
+df_sv_cleaned = df_sv[good_ind, ]
+qq = log(df_sv_cleaned[, 1])
+qq = (qq - mean(qq)) / sd(qq)
+xcovar_cleaned = xcovar[good_ind, ]
+indiv_id = df_cleaned$fullID[good_ind]
+indiv_id2 = unlist(lapply(strsplit(indiv_id, '-'), function(x){paste0(x[1:3], collapse = '-')}))
+write.table(data.frame(indiv_id, indiv_id2, qq), 'tmp3.pheno', quo = F, col = F, row = F, sep = '\t')
+write.table(cbind(indiv_id, indiv_id2, xcovar_cleaned[, -1]), 'tmp3.covar', quo = F, col = F, row = F, sep = '\t')
+cmd = '~/Documents/softwares/gcta_1.92.4beta_mac/bin/gcta64 --grm ~/Desktop/tmp/BRCA-survival-GCTA-genome/BRCA_all --reml --pheno tmp3.pheno --out tmp3 --qcovar tmp3.covar'
+system(cmd)
+hsq = read.delim2('tmp3.hsq')
+hsq %>% pander::pander()
+```
+
+
+Furthermore, we try out using genotype GRM to calculate the chip h2 of log survival time in all individuals.
+
+```{r}
+good_ind = df_sv[, 1] > 0 
+df_sv_cleaned = df_sv[good_ind, ]
+qq = log(df_sv_cleaned[, 1])
+qq = (qq - mean(qq)) / sd(qq)
+xcovar_cleaned = xcovar[good_ind, ]
+indiv_id = df_cleaned$fullID[good_ind]
+indiv_id2 = unlist(lapply(strsplit(indiv_id, '-'), function(x){paste0(x[1:3], collapse = '-')}))
+write.table(data.frame(indiv_id, indiv_id2, qq), 'tmp4.pheno', quo = F, col = F, row = F, sep = '\t')
+write.table(cbind(indiv_id, indiv_id2, xcovar_cleaned[, -1]), 'tmp4.covar', quo = F, col = F, row = F, sep = '\t')
+cmd = '~/Documents/softwares/gcta_1.92.4beta_mac/bin/gcta64 --grm ~/Desktop/tmp/BRCA-survival-GCTA-genome/BRCA_all --reml --pheno tmp4.pheno --out tmp4 --qcovar tmp4.covar'
+system(cmd)
+hsq = read.delim2('tmp4.hsq')
+hsq %>% pander::pander()
+```
+
+Furthermore, we try out using genotype GRM to calculate the chip h2 of status in all individuals.
+
+```{r}
+good_ind = df_sv[, 1] > -1
+df_sv_cleaned = df_sv[good_ind, ]
+qq = df_sv_cleaned[, 2] # log(df_sv_cleaned[, 1])
+# qq = (qq - mean(qq)) / sd(qq)
+xcovar_cleaned = xcovar[good_ind, ]
+indiv_id = df_cleaned$fullID[good_ind]
+indiv_id2 = unlist(lapply(strsplit(indiv_id, '-'), function(x){paste0(x[1:3], collapse = '-')}))
+write.table(data.frame(indiv_id, indiv_id2, qq), 'tmp5.pheno', quo = F, col = F, row = F, sep = '\t')
+write.table(cbind(indiv_id, indiv_id2, xcovar_cleaned[, -1]), 'tmp5.covar', quo = F, col = F, row = F, sep = '\t')
+cmd = '~/Documents/softwares/gcta_1.92.4beta_mac/bin/gcta64 --grm ~/Desktop/tmp/BRCA-survival-GCTA-genome/BRCA_all --reml --pheno tmp5.pheno --out tmp5 --qcovar tmp5.covar'
+system(cmd)
+hsq = read.delim2('tmp5.hsq')
+hsq %>% pander::pander()
+```
+
+
+## Run `coxmeg` for genotype Vg
+
+```{r}
+# R script to read the GRM binary file
+ReadGRMBin=function(prefix, AllN=F, size=4){
+  sum_i=function(i){
+    return(sum(1:i))
+  }
+  BinFileName=paste(prefix,".grm.bin",sep="")
+  NFileName=paste(prefix,".grm.N.bin",sep="")
+  IDFileName=paste(prefix,".grm.id",sep="")
+  id = read.table(IDFileName)
+  n=dim(id)[1]
+  BinFile=file(BinFileName, "rb");
+  grm=readBin(BinFile, n=n*(n+1)/2, what=numeric(0), size=size)
+  NFile=file(NFileName, "rb");
+  if(AllN==T){
+    N=readBin(NFile, n=n*(n+1)/2, what=numeric(0), size=size)
+  }
+  else N=readBin(NFile, n=1, what=numeric(0), size=size)
+  
+  grm_mat = matrix(0, ncol = nrow(id), nrow = nrow(id))
+  i=sapply(1:n, sum_i)
+  diag(grm_mat) = grm[i]
+  counter = 0
+  for(i in 1 : nrow(id)) {
+    for(j in 1 : i) {
+      # message(i, ' ', j)
+      counter = counter + 1
+      if(j == i) {
+        next
+      } else {
+        grm_mat[i, j] = grm[counter]
+        grm_mat[j, i] = grm[counter]
+      }
+    }
+  }
+  i=sapply(1:n, sum_i)
+  return(list(diag=grm[i], off=grm[-i], id=id, N=N, grm=grm_mat))
+}
+grm = ReadGRMBin('~/Desktop/tmp/BRCA-survival-GCTA-genome/BRCA_all')
+reorg_idx = match(df_cleaned$fullID, grm$id$V1)
+grm_cor = grm$grm[, reorg_idx][reorg_idx, ]
+# cache_rds = 'cached-yanyu-mixed-effect-model-geno.rds'
+# if(!file.exists(cache_rds)) {
+solver_wrapper = function(y, corr, covar, permutation = F) {
+  if(isTRUE(permutation)) {
+    n = nrow(y)
+    perm_idx = sample(1 : n)
+    y = y[perm_idx, ]
+    covar = covar[perm_idx, ]
+  }
+  mod = coxmeg::coxmeg(y, corr = corr, X = covar, type = 'dense', verbose = F)
+  list(tau = mod$tau, loglik = mod$int_ll)
+}
+res = solver_wrapper(df_sv, grm_cor, xcovar)
+res
+#   tau_obs = res$tau
+#   ll_obs = res$loglik
+#   nrepeat = 1000
+#   tau_perm = c()
+#   ll_perm = c()
+#   for(i in 1 : nrepeat) {
+#     cat('progress = ', i, '/', nrepeat, '\r')
+#     res = solver_wrapper(df_sv, grm_cor, xcovar, permutation = T)
+#     tau_perm = c(tau_perm, res$tau)
+#     ll_perm = c(ll_perm, res$loglik)
+#   }
+#   saveRDS(list(tau_obs = tau_obs, tau_perm = tau_perm), cache_rds)
+# } else {
+#   tmp = readRDS(cache_rds)
+#   tau_obs = tmp$tau_obs
+#   tau_perm = tmp$tau_perm
+# }
+# hist(tau_perm) ; abline(v = tau_obs, col = 'red')
+# message('p-value = ', mean(tau_obs <= tau_perm))
+```
+
+## Adding genetic PCs
+
+We try out using genotype GRM to calculate the chip h2 of log survival time in living individuals.
+
+```{r}
+cmd = '~/Documents/softwares/gcta_1.92.4beta_mac/bin/gcta64 --grm ~/Desktop/tmp/BRCA-survival-GCTA-genome/BRCA_all --pca 5 --out brca-pca'
+system(cmd)
+df_pc = read.table('brca-pca.eigenvec')
+df_pc = df_pc[ match(df_cleaned$fullID, df_pc$V1), ]
+xcovar_full = as.matrix(cbind(xcovar, df_pc[, c(-1, -2)]))
+
+good_ind = df_sv[, 1] > 0 & df_sv[, 2] == 0
+df_sv_cleaned = df_sv[good_ind, ]
+qq = log(df_sv_cleaned[, 1])
+qq = (qq - mean(qq)) / sd(qq)
+xcovar_cleaned = xcovar_full[good_ind, ]
+indiv_id = df_cleaned$fullID[good_ind]
+indiv_id2 = unlist(lapply(strsplit(indiv_id, '-'), function(x){paste0(x[1:3], collapse = '-')}))
+write.table(data.frame(indiv_id, indiv_id2, qq), 'tmp6.pheno', quo = F, col = F, row = F, sep = '\t')
+write.table(cbind(indiv_id, indiv_id2, xcovar_cleaned[, -1]), 'tmp6.covar', quo = F, col = F, row = F, sep = '\t')
+cmd = '~/Documents/softwares/gcta_1.92.4beta_mac/bin/gcta64 --grm ~/Desktop/tmp/BRCA-survival-GCTA-genome/BRCA_all --reml --pheno tmp6.pheno --out tmp6 --qcovar tmp6.covar'
+system(cmd)
+hsq = read.delim2('tmp6.hsq')
+hsq %>% pander::pander()
+
 ```
