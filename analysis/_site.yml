@@ -1,12 +1,10 @@
-name: "PTRS-OTRS scoring project"
+name: "PTRS-OTRS Project"
 output_dir: ../docs
 navbar:
-  title: "PTRS-OTRS scoring project"
+  title: "PTRS-OTRS Project"
   left:
   - text: Home
     href: index.html
-  - text: Home
-    href: TRSscorecalculator.html
 output:
   workflowr::wflow_html:
     toc: yes

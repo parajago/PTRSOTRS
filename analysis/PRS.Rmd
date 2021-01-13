@@ -1,0 +1,223 @@
+---
+title: "Generation of polygenic risk score in patients who already have breast cancer"
+author: "Padma Sheila Rajagopal, MD MPH"
+date: "1/13/2021"
+
+site: workflowr::wflow_site
+output:
+  workflowr::wflow_html:
+    df_print: paged
+    toc: true
+    theme: spacelab
+    highlight: textmate
+    
+---
+```{r DATA setup, warning=FALSE, include=FALSE, echo=FALSE}
+rm(list = ls())
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(data.table)
+library(pander)
+library(ggExtra)
+library(survival)
+library(survminer)
+library(stringr)
+library(glmnet)
+library(survival)
+library(factoextra)
+library(flashClust)
+knitr::opts_chunk$set(autodep = TRUE)
+options(datatable.fread.datatable = F)
+options(stringsAsFactors = F)
+panderOptions('table.split.table', Inf)
+predixcan_cutoffs = c(5e-8, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1)
+
+gen.score <- function(df, x, a, b) { 
+  ## extract the objective column
+  df1 = df[,a:b]
+  col = df[, x]
+  df1 * col
+}
+
+setwd("~/Research-Local/2020-ptrsotrs")
+
+#DATA FORMATTING FOR EUROPEAN PATIENTS
+TCGAalignment <- read.table("Input/ids/BRCA/EUR/BRCA.EUR.aliquot.tsv", sep="\t") #IDs of TCGA patients of European ancestry based on Jianmao's PCA
+TCGAalignment <- as.data.frame(TCGAalignment$V1)
+names(TCGAalignment)[names(TCGAalignment) == "TCGAalignment$V1"] <- "fullID"
+TCGAalignment$submitter_id <- substr(TCGAalignment$fullID, 1, 12)
+
+#DATA FORMATTING FOR ALL PATIENTS - CLINICAL (BREAST)
+clinical <- read.csv("Input/clinical_formatted/BRCA/brca-cbioportal-formatted.csv", header=TRUE)
+clinical_formatted <- clinical %>% dplyr::select ("Patient.ID", "Diagnosis.Age", "Disease.Free..Months.", "Disease.Free.Status", "Months.of.disease.specific.survival", "Disease.specific.Survival.status", "Fraction.Genome.Altered", "Overall.Survival..Months.", "Overall.Survival.Status", "American.Joint.Committee.on.Cancer.Metastasis.Stage.Code", "Neoplasm.Disease.Lymph.Node.Stage.American.Joint.Committee.on.Cancer.Code", "American.Joint.Committee.on.Cancer.Tumor.Stage.Code", "Progress.Free.Survival..Months.", "Progression.Free.Status")
+
+names(clinical_formatted) <- c("submitter_id", "age", "dfs.months", "dfs.status", "dss.months", "dss.status", "genome", "oss.months", "oss.status", "AJCCM", "AJCCN", "AJCCT", "pfs.months", "pfs.status")
+
+subtype <- read.csv("Input/clinical_formatted/BRCA/brca_predixcan_subtypes.694.csv", header=TRUE)
+
+subtype_formatted <- subtype %>% dplyr::select ("Complete.TCGA.ID", "ER.Status", "PR.Status", "HER2.Final.Status", "PAM50.mRNA")
+subtype_formatted$ER.Status <- ifelse(subtype_formatted$ER.Status=="Not Performed", NA, subtype_formatted$ER.Status)
+subtype_formatted$ER.Status <- ifelse(subtype_formatted$ER.Status=="Performed but Not Available", NA, subtype_formatted$ER.Status)
+subtype_formatted$ER.Status <- ifelse(subtype_formatted$ER.Status=="Indeterminate", NA, subtype_formatted$ER.Status)
+
+subtype_formatted$PR.Status <- ifelse(subtype_formatted$PR.Status=="Not Performed", NA, subtype_formatted$PR.Status)
+subtype_formatted$PR.Status <- ifelse(subtype_formatted$PR.Status=="Performed but Not Available", NA, subtype_formatted$PR.Status)
+subtype_formatted$PR.Status <- ifelse(subtype_formatted$PR.Status=="Indeterminate", NA, subtype_formatted$PR.Status)
+
+subtype_formatted$HER2.Final.Status <- ifelse(subtype_formatted$HER2.Final.Status=="Not Available", NA, subtype_formatted$HER2.Final.Status)
+subtype_formatted$HER2.Final.Status <- ifelse(subtype_formatted$HER2.Final.Status=="Equivocal", NA, subtype_formatted$HER2.Final.Status)
+
+names(subtype_formatted) <- c("submitter_id", "er", "pr", "her2", "pam50")
+
+subtype_formatted$subtypefinal <- ifelse ((subtype_formatted$er=="Positive" | subtype_formatted$pr=="Positive") & subtype_formatted$her2=="Negative", "HR+", NA) #Characterizing the subtype variable
+subtype_formatted$subtypefinal <- ifelse ((subtype_formatted$er=="Positive" | subtype_formatted$pr=="Positive") & subtype_formatted$her2=="Positive", "TPBC", subtype_formatted$subtypefinal) #Characterizing the subtype variable
+subtype_formatted$subtypefinal <- ifelse ((subtype_formatted$er=="Negative" & subtype_formatted$pr=="Negative") & subtype_formatted$her2=="Negative", "TNBC", subtype_formatted$subtypefinal) #Characterizing the subtype variable
+subtype_formatted$subtypefinal <- ifelse ((subtype_formatted$er=="Negative" & subtype_formatted$pr=="Negative") & subtype_formatted$her2=="Positive", "HER2+", subtype_formatted$subtypefinal) #Characterizing the subtype variable
+
+TCGAalignment <- merge(clinical_formatted, TCGAalignment,by="submitter_id", all.y=TRUE) #Confirmation that all TCGA data matches each other (all BRCA IDs have clinical information)
+
+TCGAalignment <- merge(subtype_formatted, TCGAalignment,by="submitter_id", all.y=TRUE) #Confirmation that all TCGA data matches each other (all BRCA IDs have clinical information)
+
+TCGAavail <- TCGAalignment %>% dplyr::filter (is.na(TCGAalignment$age)==FALSE)
+
+#Creating the fam format file that aligns samples with phenotypes for PLINK
+famOS <- read.table("Input/fam/BRCA-OS-EUR.fam")
+names(famOS)<-c("submitter_id","fullID","within-family-father","within-family-mother","sex","phenotype")
+
+famPFS <- read.table("Input/fam/BRCA-PFS-EUR.fam")
+names(famPFS)<-c("submitter_id","fullID","within-family-father","within-family-mother","sex","phenotype")
+
+#Creating the fam format file that aligns samples with phenotypes for PLINK
+famOS <- read.table("Input/fam/BRCA-OS-EUR.fam")
+names(famOS)<-c("submitter_id","fullID","within-family-father","within-family-mother","sex","phenotype")
+
+famPFS <- read.table("Input/fam/BRCA-PFS-EUR.fam")
+names(famPFS)<-c("submitter_id","fullID","within-family-father","within-family-mother","sex","phenotype")
+
+save.image("Input/PTRSOTRS.RData")
+```
+#PRS score: Germline risk, genomic data only
+This is the code to generate the polygenic risk score (as a form of control, genomic only) and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. The PRS used here is the 313-SNP score as identified by Mavaddat et al (AJHG, 2019).
+```{r PRS score generation, cache=TRUE, warning=FALSE, echo=FALSE}
+setwd("~/Research-Local/2020-ptrsotrs")
+PRSChr1allpts <- read.table("Input/PRS-dosage/BRCA_chr1.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr2allpts <- read.table("Input/PRS-dosage/BRCA_chr2.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr3allpts <- read.table("Input/PRS-dosage/BRCA_chr3.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr4allpts <- read.table("Input/PRS-dosage/BRCA_chr4.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr5allpts <- read.table("Input/PRS-dosage/BRCA_chr5.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr6allpts <- read.table("Input/PRS-dosage/BRCA_chr6.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr7allpts <- read.table("Input/PRS-dosage/BRCA_chr7.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr8allpts <- read.table("Input/PRS-dosage/BRCA_chr8.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr9allpts <- read.table("Input/PRS-dosage/BRCA_chr9.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr10allpts <- read.table("Input/PRS-dosage/BRCA_chr10.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr11allpts <- read.table("Input/PRS-dosage/BRCA_chr11.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr12allpts <- read.table("Input/PRS-dosage/BRCA_chr12.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr13allpts <- read.table("Input/PRS-dosage/BRCA_chr13.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr14allpts <- read.table("Input/PRS-dosage/BRCA_chr14.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr15allpts <- read.table("Input/PRS-dosage/BRCA_chr15.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr16allpts <- read.table("Input/PRS-dosage/BRCA_chr16.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr17allpts <- read.table("Input/PRS-dosage/BRCA_chr17.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr18allpts <- read.table("Input/PRS-dosage/BRCA_chr18.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr19allpts <- read.table("Input/PRS-dosage/BRCA_chr19.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr20allpts <- read.table("Input/PRS-dosage/BRCA_chr20.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr21allpts <- read.table("Input/PRS-dosage/BRCA_chr21.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+PRSChr22allpts <- read.table("Input/PRS-dosage/BRCA_chr22.711EUR-313PRS.dosages.tsv", sep="\t", header=TRUE)
+
+PRSallchrallpts <- rbind(PRSChr1allpts, PRSChr2allpts, PRSChr3allpts, PRSChr4allpts, PRSChr5allpts, PRSChr6allpts, PRSChr7allpts, PRSChr8allpts, PRSChr9allpts, PRSChr10allpts, PRSChr11allpts, PRSChr12allpts, PRSChr13allpts, PRSChr14allpts, PRSChr15allpts, PRSChr16allpts, PRSChr17allpts, PRSChr18allpts, PRSChr19allpts, PRSChr20allpts, PRSChr21allpts, PRSChr22allpts) 
+
+PRS313 <- read.csv("Input/PRS-raw/PRS-313-betas.csv", header=TRUE)
+missingsnps <- as.data.frame(setdiff(PRS313$Position, PRSallchrallpts$X.2.POS))
+names(missingsnps)[names(missingsnps) == "setdiff(PRS313$Position, PRSallchrallpts$X.2.POS)"] <- "missingpos"
+missingsnps <- merge.data.frame(missingsnps, PRS313, by.x="missingpos", by.y="Position")
+
+PRScolnames <- names(PRSallchrallpts)
+PRScolnames <- gsub ('.*.TCGA', "TCGA", PRScolnames)
+PRScolnames <- gsub(".", "-", PRScolnames, fixed = TRUE)
+names(PRSallchrallpts) <- PRScolnames
+
+PRSallchrallpts_dups <-PRSallchrallpts[duplicated(PRSallchrallpts$`X-2-POS`)|duplicated(PRSallchrallpts$`X-2-POS`, fromLast=TRUE),]
+PRSallchrallpts[62,2] <- NA #Delete inappropriate duplicates
+PRSallchrallpts[67,2] <- NA
+PRSallchrallpts[77,2] <- NA
+PRSallchrallpts[124,2] <- NA
+PRSallchrallpts[174,2] <- NA
+
+PRSallchrallpts[71,2] <- NA #Chr5, 345109
+PRSallchrallpts[96,2] <- NA
+PRSallchrallpts[135,2] <- NA #Chr8, 170692
+PRSallchrallpts[199,2] <- NA #Chr11, 1895708
+PRSallchrallpts[213,2] <- NA #Chr12, 293626
+PRSallchrallpts[214,2] <- NA 
+PRSallchrallpts[250,2] <- NA #Chr16, 4008542
+
+PRSallchrallpts[92,2] <- NA #Chr5, 1279790
+PRSallchrallpts[93,2] <- NA #Chr5, 1296255
+PRSallchrallpts[195,2] <- NA #Chr11, 803017
+
+PRSallchrallpts <- PRSallchrallpts %>% dplyr::filter (!is.na(PRSallchrallpts$`X-2-POS`))
+
+PRSweights <- PRS313 %>% dplyr::select(Position, Overall.Breast.Cancer)
+PRSallchrallpts <- merge(PRSallchrallpts, PRSweights, by.x="X-2-POS", by.y="Position")
+
+PRSscore <- gen.score(PRSallchrallpts, 710, 5,709)
+PRSscore[271,] <- colSums(PRSscore)
+PRSscorefinal <- PRSscore[271,]
+PRSscorefinal <- as.data.frame(t(PRSscorefinal))
+names(PRSscorefinal)[names(PRSscorefinal) == "271"] <- "score"
+PRSscorefinal$fullID <- rownames(PRSscorefinal)
+
+hist(PRSscorefinal$score) #Given that the PRS score appears somewhat normally distributed in this population, we can try to estimate a Z-statistic and p-value
+```
+
+Given that the PRS score appears to have a somewhat normal distribution, we can try to estimate a Z-statistic and p-value to determine significance threshold.
+
+```{r PRS score stats, cache=TRUE, warning=FALSE, echo=FALSE}
+PRS_sd <- sd(PRSscorefinal$score)*sqrt((length(PRSscorefinal$score)-1)/(length(PRSscorefinal$score)))
+PRS_mean <- mean(PRSscorefinal$score)
+PRSscorefinal$Z_score <- (PRSscorefinal$score - PRS_mean)/(PRS_sd)
+PRSscorefinal$pval <- 1-pnorm(PRSscorefinal$score, PRS_mean, PRS_sd)
+PRSscorefinal$cutoff <- cut(PRSscorefinal$pval, breaks=predixcan_cutoffs, include.lowest = TRUE)
+
+PRSscorefinalOS <- merge(PRSscorefinal, famOS, by.x="fullID", by.y="submitter_id")
+PRSscorefinalOS <- PRSscorefinalOS %>% dplyr::select (fullID, score, Z_score, pval, cutoff, phenotype)
+
+PRSscorefinalPFS <- merge(PRSscorefinal, famPFS, by.x="fullID", by.y="submitter_id")
+PRSscorefinalPFS <- PRSscorefinalPFS %>% dplyr::select (fullID, score, Z_score, pval, cutoff, phenotype)
+```
+
+#PRS-Overall survival in breast cancer 
+```{r Cox regression of PRS on overall survival, cache=TRUE, warning=FALSE, echo=FALSE}
+survivalwhite <- merge(PRSscorefinalOS, TCGAavail)
+survivalwhite$phenotype <- ifelse(survivalwhite$phenotype=="2", "case", survivalwhite$phenotype)
+survivalwhite$phenotype <- ifelse(survivalwhite$phenotype=="1", 0, survivalwhite$phenotype)
+survivalwhite$phenotype <- ifelse(survivalwhite$phenotype=="case", 1, survivalwhite$phenotype)
+
+#Cox regression of overall survival
+surv_object <- Surv(time=survivalwhite$oss.months, event=as.numeric(survivalwhite$phenotype))
+     
+fit.coxph <- coxph(surv_object ~ survivalwhite$score,
+                   data = survivalwhite)
+
+ggforest(fit.coxph, data = survivalwhite, main="Polygenic risk score in overall survival in European ancestry patients")
+```
+
+In a univariate analysis, PRS score is not significantly associated with overall survival in breast cancer (OS)
+
+#PRS-Progression free survival in breast cancer
+```{r Cox regression of PRS on recurrence, cache=TRUE, warning=FALSE, echo=FALSE}
+recurrencewhite <- merge(PRSscorefinalPFS, TCGAavail)
+recurrencewhite$phenotype <- ifelse(recurrencewhite$phenotype=="2", "case", recurrencewhite$phenotype)
+recurrencewhite$phenotype <- ifelse(recurrencewhite$phenotype=="1", 0, recurrencewhite$phenotype)
+recurrencewhite$phenotype <- ifelse(recurrencewhite$phenotype=="case", 1, recurrencewhite$phenotype)
+
+#Cox regression of recurrence
+surv_object_r <- Surv(time=recurrencewhite$pfs.months, event=as.numeric(recurrencewhite$phenotype))
+     
+fit.coxph_r <- coxph(surv_object_r ~ recurrencewhite$score,
+                   data = recurrencewhite)
+
+ggforest(fit.coxph_r, data = recurrencewhite, main="Polygenic risk score in progression-free survival in European ancestry patients")
+```
+
+In a univariate analysis, PRS score is not significantly associated with progression-free survival in breast cancer (PFS). 

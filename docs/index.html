@@ -11,7 +11,7 @@
 
 
 
-<title>Predicted Transcriptomic / Observed Transcriptomic Score Project</title>
+<title>Developing an integrated prognostic score using germline risk variants and RNA expression from primary breast and ovarian cancers for prognostication of survival across subtypes</title>
 
 <script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -32,6 +32,15 @@ div.section {
   padding-top: 12px;
 }
 </style>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
 
 <style type="text/css">code{white-space: pre;}</style>
 <style type="text/css">
@@ -77,6 +86,7 @@ h6 {
   text-align: left;
 }
 </style>
+
 
 
 
@@ -186,7 +196,7 @@ summary {
 
 
 
-<h1 class="title toc-ignore">Predicted Transcriptomic / Observed Transcriptomic Score Project</h1>
+<h1 class="title toc-ignore">Developing an integrated prognostic score using germline risk variants and RNA expression from primary breast and ovarian cancers for prognostication of survival across subtypes</h1>
 
 </div>
 
@@ -211,13 +221,13 @@ summary {
 <div class="tab-content">
 <div id="summary" class="tab-pane fade in active">
 <p>
-<strong>Last updated:</strong> 2020-08-11
+<strong>Last updated:</strong> 2021-01-13
 </p>
 <p>
 <strong>Checks:</strong> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 1 <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span> 1
 </p>
 <p>
-<strong>Knit directory:</strong> <code>~/Research-Local/2019-tprs/PTRSOTRS/</code> <span class="glyphicon glyphicon-question-sign" aria-hidden="true" title="This is the local directory in which the code in this file was executed."> </span>
+<strong>Knit directory:</strong> <code>~/Research-Local/2020-ptrsotrs/PTRSOTRS/</code> <span class="glyphicon glyphicon-question-sign" aria-hidden="true" title="This is the local directory in which the code in this file was executed."> </span>
 </p>
 <p>
 This reproducible <a href="http://rmarkdown.rstudio.com">R Markdown</a> analysis was created with <a
@@ -242,16 +252,16 @@ This reproducible <a href="http://rmarkdown.rstudio.com">R Markdown</a> analysis
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomparajagoPTRSOTRStree0ac62b366622850f3e0b33663c72b6c76c907f5ctargetblank0ac62b3a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/parajago/PTRSOTRS/tree/0ac62b366622850f3e0b33663c72b6c76c907f5c" target="_blank">0ac62b3</a> </a>
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomparajagoPTRSOTRStree0b4b45fecdffa13039e5ca15d8dd9de5441c1904targetblank0b4b45fa"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/parajago/PTRSOTRS/tree/0b4b45fecdffa13039e5ca15d8dd9de5441c1904" target="_blank">0b4b45f</a> </a>
 </p>
 </div>
-<div id="strongRepositoryversionstrongahrefhttpsgithubcomparajagoPTRSOTRStree0ac62b366622850f3e0b33663c72b6c76c907f5ctargetblank0ac62b3a" class="panel-collapse collapse">
+<div id="strongRepositoryversionstrongahrefhttpsgithubcomparajagoPTRSOTRStree0b4b45fecdffa13039e5ca15d8dd9de5441c1904targetblank0b4b45fa" class="panel-collapse collapse">
 <div class="panel-body">
 <p>
 Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility.
 </p>
 <p>
-The results in this page were generated with repository version <a href="https://github.com/parajago/PTRSOTRS/tree/0ac62b366622850f3e0b33663c72b6c76c907f5c" target="_blank">0ac62b3</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
+The results in this page were generated with repository version <a href="https://github.com/parajago/PTRSOTRS/tree/0b4b45fecdffa13039e5ca15d8dd9de5441c1904" target="_blank">0b4b45f</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
 </p>
 <p>
 Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
@@ -261,12 +271,26 @@ Ignored files:
     Ignored:    .Rhistory
     Ignored:    .Rproj.user/
     Ignored:    analysis/.Rhistory
+    Ignored:    analysis/.Rproj.user/
 
 Untracked files:
+    Untracked:  analysis/OTRS.Rmd
+    Untracked:  analysis/PRS.Rmd
+    Untracked:  analysis/PTRS.Rmd
+    Untracked:  analysis/subtype.Rmd
+    Untracked:  code/clinicalformatting.Rmd
     Untracked:  index.Rmd
+    Untracked:  index.html
+    Untracked:  site_libs/
 
 Unstaged changes:
+    Modified:   .DS_Store
+    Modified:   analysis/.DS_Store
+    Modified:   analysis/PTRSOTRS.Rproj
+    Modified:   analysis/TRSscorecalculator.Rmd
     Deleted:    analysis/index.Rmd
+    Modified:   code/.DS_Store
+    Modified:   docs/.DS_Store
 
 </code></pre>
 <p>
@@ -286,14 +310,37 @@ There are no past versions. Publish this analysis with <code>wflow_publish()</co
 </div>
 </div>
 </div>
-<p>Padma Sheila Rajagopal, MD MPH Olopade Lab / Im Lab Postdoctoral Fellow</p>
-<p>This is the site I will use for reporting on a project in which I am integrating germline risk information with transcriptomic methods (observed vs. predicted from germline) to better stratify breast cancer patients.</p>
-<p>Analysis as below:</p>
-<ul>
-<li><p><a href="https://docs.google.com/document/d/1Rhp67Yp_OLxVNAe6u_zVeh2_mQKkTXvN3qqdwCjDM8M/edit?usp=sharing" class="uri">https://docs.google.com/document/d/1Rhp67Yp_OLxVNAe6u_zVeh2_mQKkTXvN3qqdwCjDM8M/edit?usp=sharing</a> Methods for this project</p></li>
-<li><p><a href="https://docs.google.com/document/d/17LzTapv50UOhJs7c0-8cECFKyZJPz7Umxup2zE6NNdo/edit?usp=sharing" class="uri">https://docs.google.com/document/d/17LzTapv50UOhJs7c0-8cECFKyZJPz7Umxup2zE6NNdo/edit?usp=sharing</a> Results for this project</p></li>
-<li><p>Score calculation and performance testing: <a href="https://parajago.github.io/PTRSOTRS/TRSscorecalculator.html" class="uri">https://parajago.github.io/PTRSOTRS/TRSscorecalculator.html</a></p></li>
-</ul>
+<h3>
+Project Authors:
+</h3>
+<p>Padma Sheila Rajagopal <br> Yanyu Liang <br> Alvaro Barbeira <br> Owen Melia <br> Jiamao Zheng <br> Yonglan Zheng <br> Toshio Yoshimatsu <br> Dezheng Huo <br> Guimin Gao <br> Olufunmilayo I. Olopade <br> Hae Kyung Im <br></p>
+<p->The manuscript for this project is currently in progress. Methods and manuscript draft are available on request.
+</p>
+<h3>
+Analysis Roadmap:
+</h3>
+<p>
+Generation of <a href="https://parajago.github.io/PTRSOTRS/PRS.html">polygenic score (control)</a> and test of performance in breast cancer using Cox proportional hazards
+</p>
+<p>
+Generation of <a href="https://parajago.github.io/PTRSOTRS/PTRS.html">predicted transcriptomic score</a> and test of performance in breast cancer using Cox proportional hazards
+</p>
+<p>
+Generation of <a href="https://parajago.github.io/PTRSOTRS/OTRS.html">observed transcriptomic score</a> and test of performance in breast cancer using Cox proportional hazards
+</p>
+<p>
+Performance of PTRS/OTRS across <a href="https://parajago.github.io/PTRSOTRS/subtype.html">breast cancer subtypes</a>
+</p>
+<p>
+Test of performance across p-value thresholds: <a href="https://liangyy.github.io/tcga-survival/brca_cox.html">link</a>
+</p>
+<p>
+Validation in ovarian cancer: <a href="https://liangyy.github.io/tcga-survival/index.html#3_OV_cohort">link</a>
+</p>
+<p>
+Data (figures and tables used in the manuscript as well as supplementary material) will be made available once the manuscript is complete. Functions used throughout the analysis are described and displayed here.
+</p>
+</main>
 
 
 <!-- Adjust MathJax settings so that all math formulae are shown using
@@ -316,7 +363,7 @@ footer is added to webpages before the MathJax javascript. -->
 
 // add bootstrap table styles to pandoc tables
 function bootstrapStylePandocTables() {
-  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
 }
 $(document).ready(function () {
   bootstrapStylePandocTables();

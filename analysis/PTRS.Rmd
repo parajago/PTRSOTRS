@@ -1,0 +1,263 @@
+---
+title: "Generation of predicted transcriptomic risk score in patients with breast cancer"
+author: "Padma Sheila Rajagopal, MD MPH"
+date: "1/13/2020"
+
+site: workflowr::wflow_site
+output:
+  workflowr::wflow_html:
+    df_print: paged
+    toc: true
+    theme: spacelab
+    highlight: textmate
+    
+---
+```{r DATA setup, warning=FALSE, include=FALSE, echo=FALSE}
+rm(list = ls())
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(data.table)
+library(pander)
+library(ggExtra)
+library(survival)
+library(survminer)
+library(stringr)
+library(glmnet)
+library(survival)
+library(factoextra)
+library(flashClust)
+knitr::opts_chunk$set(autodep = TRUE)
+options(datatable.fread.datatable = F)
+options(stringsAsFactors = F)
+panderOptions('table.split.table', Inf)
+predixcan_cutoffs = c(5e-8, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1)
+
+setwd("~/Research-Local/2020-ptrsotrs")
+load("Input/PTRSOTRS.RData")
+
+gen.score <- function(df, x, a, b) { 
+  ## extract the objective column
+  df1 = df[,a:b]
+  col = df[, x]
+  df1 * col
+}
+
+calculate_trs = function(expression_df, effect_size_df, pvalue_cutoffs = c(5e-8, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1)) {
+  # expression_df should have rownames as gene id and colnames as individual id
+  # effect_size_df should have 
+  #     1. column named gene with gene id;
+  #     2. column named effect_size as effect size;
+  #     3. column named pvalue as pvalue
+  
+  # first of all, we remove genes with crazily large effect size (they will skew the PTRS distribution)
+  effect_size_df_cleaned = effect_size_df %>% filter(abs(effect_size) < 5)
+  
+  # limit analysis to genes occcur in both expression_df and effect_size_df
+  pred_expr_gene_pool = rownames(expression_df)
+  predixcan_gene_pool = effect_size_df_cleaned$gene
+  gene_pool_intersect = intersect(pred_expr_gene_pool, predixcan_gene_pool)
+  
+  # loop over p-value cutoffs and calculate PTRS at each cutoff
+  out = list()
+  outgenes = list()
+  for(c in pvalue_cutoffs) {
+    predixcan_i = effect_size_df_cleaned %>% filter(gene %in% gene_pool_intersect)
+    beta_gene = predixcan_i %>% filter(pvalue < c) %>% select(gene, effect_size)
+    outgenes[[length(outgenes) + 1]] = beta_gene %>% mutate(cutoff = c)
+    indiv = colnames(expression_df) 
+    mat = t(expression_df)
+    mat = mat[, colnames(mat) %in% beta_gene$gene, drop = F]
+    mat = mat[, match(beta_gene$gene, colnames(mat)), drop = F]
+    tprs_i = as.matrix(mat) %*% beta_gene$effect_size
+    df_tprs = data.frame(indiv = indiv, tprs = tprs_i, cutoff = c)
+    rownames(df_tprs) = NULL
+    out[[length(out) + 1]] = df_tprs
+  }
+  out = do.call(rbind, out)
+  outgenes = do.call(rbind, outgenes)
+  list(ptrs = out, selected_genes = outgenes)
+}
+```
+
+#Germline risk: Predicted transcriptomic score (PTRS)
+This is the code to generate the predicted transcriptomic risk score and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
+
+The predicted transcriptomic score is derived from using the weight of a gene's association to germline risk of breast cancer * predicted expression of that gene, summed across different thresholds of signifcance. 
+
+```{r Predicted-TPRS score generation for overall survival, cache=TRUE, warning=FALSE, echo=FALSE}
+ospredictedexpression <- read.table("Input/predicted_expression/BRCA/os-results_predicted_expression.txt", header=TRUE, as.is = TRUE)
+ospredictedexpressionreference <- ospredictedexpression
+PTRSOSgroup <- ospredictedexpressionreference$IID
+
+PTPRSweights <- read.table("Input/risk_weights/2020_BRCA_risk_weights/BCAC_Overall_2020_spredixcan_GTExV8_mashr.csv", header=TRUE, sep=",")
+PTPRSweights <- PTPRSweights %>% dplyr::select(gene, gene_name, effect_size, pvalue)
+
+ospredictedexpression <- as.data.frame(t(ospredictedexpression))
+names(ospredictedexpression) <- ospredictedexpression["IID",]
+
+ospredictedexpression <- ospredictedexpression[-1,] #Removing the FID row
+ospredictedexpression <- ospredictedexpression[-1,] #Removing the IID row 
+ospredictedexpressiongene <- rownames(ospredictedexpression)
+ospredictedexpression <- as.data.frame(lapply(ospredictedexpression, as.numeric))
+rownames(ospredictedexpression) <- ospredictedexpressiongene
+ospredictedexpression$gene <- row.names(ospredictedexpression)
+
+ospredictedexpression <- merge(ospredictedexpression, PTPRSweights, by="gene", all.x=TRUE)
+
+PTRSscoreraw <- gen.score(ospredictedexpression, 697, 2, 695)
+PTRSscoredev <- PTRSscoreraw
+rownames(PTRSscoredev) <- ospredictedexpressiongene
+
+PTRSoptimization <- calculate_trs(PTRSscoredev, PTPRSweights)
+
+calculate_trs = function(expression_df, effect_size_df, pvalue_cutoffs = c(5e-8, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1))
+
+pheno <- famOS %>% select(fullID,phenotype)
+names(pheno) = c("SUBJID", "phenotype") 
+
+perf_t = list()
+ptrs <- PTRSoptimization$ptrs
+ptrs$indiv = stringr::str_replace_all(ptrs$indiv, '\\.', '-')
+for(c in predixcan_cutoffs) {
+  perf_t[[as.character(c)]] = inner_join(pheno, ptrs %>% dplyr::filter(cutoff == c), by = c('SUBJID' = 'indiv'))
+}
+
+for(i in names(perf_t)) {
+    p = perf_t[[i]] %>% ggplot() + geom_density(aes(x = tprs, fill = factor(phenotype)), alpha = .5) + theme(legend.position = 'bottom')
+    p = p + ggtitle(paste0('p-value cutoff: ', i))
+    ggsave(paste0('~/Desktop/', 'ptrs_cutoff_', i, '.pdf'), p, height = 10, width = 6)
+  }
+
+PTRSscorefinal <- PTRSoptimization$ptrs %>% dplyr::filter(cutoff==1e-5)
+PTRSscorefinal$indiv = stringr::str_replace_all(PTRSscorefinal$indiv, '\\.', '-')
+PTRSscorefinal <- merge(PTRSscorefinal, famOS, by.x="indiv", by.y="fullID")
+PTRSscorefinal <- PTRSscorefinal %>% select (indiv, tprs, cutoff, phenotype)
+```
+
+#PTRS-Overall survival in breast cancer 
+```{r Cox regression of Predicted TRS and overall survival, cache=TRUE, warning=FALSE, echo=FALSE}
+survivalwhitePTRS <- merge(PTRSscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
+survivalwhitePTRS$phenotype <- ifelse(survivalwhitePTRS$phenotype=="2", "case", survivalwhitePTRS$phenotype)
+survivalwhitePTRS$phenotype <- ifelse(survivalwhitePTRS$phenotype=="1", 0, survivalwhitePTRS$phenotype)
+survivalwhitePTRS$phenotype <- ifelse(survivalwhitePTRS$phenotype=="case", 1, survivalwhitePTRS$phenotype)
+
+#Cox regression of overall survival
+surv_objectPTRS <- Surv(time=survivalwhitePTRS$oss.months, event=as.numeric(survivalwhitePTRS$phenotype))
+
+fit.coxphPTRS <- coxph(surv_objectPTRS ~ survivalwhitePTRS$tprs,
+                   data = survivalwhitePTRS)
+
+ggforest(fit.coxphPTRS, data = survivalwhitePTRS, main="Predicted transcriptomic score in overall survival in European ancestry patients")
+```
+
+We see an association between PTRS (predicted transcriptomic) score and overall survival. This score incorporates the germline in both genes associated with risk (by weights) and in terms of the predicted transcriptome. 
+
+#Control for Predicted-TPRS score - overall transcriptome and overall survival
+```{r Control.1 for Predicted-TPRS score - overall transcriptome without risk-based effect size and overall survival, cache=TRUE, warning=FALSE, echo=FALSE}
+ospredictedexpressioncontrol1 <- ospredictedexpressionreference
+ospredictedexpressioncontrol1 <- as.data.frame(t(ospredictedexpressioncontrol1))
+names(ospredictedexpressioncontrol1) <- ospredictedexpressioncontrol1["IID",]
+ospredictedexpressioncontrol1 <- ospredictedexpressioncontrol1[-1,] #Removing the FID row
+ospredictedexpressioncontrol1 <- ospredictedexpressioncontrol1[-1,] #Removing the IID row 
+ospredictedexpressioncontrol1gene <- rownames(ospredictedexpressioncontrol1)
+ospredictedexpressioncontrol1 <- as.data.frame(lapply(ospredictedexpressioncontrol1, as.numeric))
+rownames(ospredictedexpressioncontrol1) <- ospredictedexpressioncontrol1gene
+ospredictedexpressioncontrol1$gene <- row.names(ospredictedexpressioncontrol1)
+
+ospredictedexpressioncontrol1$weight <- 1
+PTRScontrolraw <- gen.score(ospredictedexpressioncontrol1, 696, 1,694)
+
+PTRScontroldev <- PTRScontrolraw
+rownames(PTRScontroldev) <- ospredictedexpressioncontrol1gene
+
+PTRScontrol1 <- as.data.frame(colSums(PTRScontroldev, na.rm = FALSE))
+colnames(PTRScontrol1) <- c("PTRScontrol1")
+PTRScontrol1$SUBJID <- rownames(PTRScontrol1)
+PTRScontrol1$SUBJID = stringr::str_replace_all(PTRScontrol1$SUBJID, '\\.', '-')
+
+pheno <- famOS %>% select(fullID,phenotype)
+names(pheno) = c("SUBJID", "phenotype") 
+
+PTRScontrol1 <- merge(PTRScontrol1, pheno, by="SUBJID")
+colnames(PTRScontrol1) <- c("indiv", "ptrscontrol", "phenotype")
+```
+
+```{r Cox regression of Control.1 for predicted TPRS score (overall transcriptome without risk-based effect size) and overall survival, cache=TRUE, warning=FALSE, echo=FALSE}
+
+survivalwhitePTRScontrol <- merge(PTRScontrol1, TCGAavail, by.x="indiv", by.y="submitter_id")
+
+survivalwhitePTRScontrol$phenotype <- ifelse(survivalwhitePTRScontrol$phenotype=="2", "case", survivalwhitePTRScontrol$phenotype)
+survivalwhitePTRScontrol$phenotype <- ifelse(survivalwhitePTRScontrol$phenotype=="1", 0, survivalwhitePTRScontrol$phenotype)
+survivalwhitePTRScontrol$phenotype <- ifelse(survivalwhitePTRScontrol$phenotype=="case", 1, survivalwhitePTRScontrol$phenotype)
+
+#Cox regression of overall survival
+surv_objectPTRScontrol <- Surv(time=survivalwhitePTRScontrol$oss.months, event=as.numeric(survivalwhitePTRScontrol$phenotype))
+
+fit.coxphPTRScontrol <- coxph(surv_objectPTRScontrol ~ survivalwhitePTRScontrol$ptrscontrol,
+                   data = survivalwhitePTRScontrol)
+
+ggforest(fit.coxphPTRScontrol, data = survivalwhitePTRScontrol, main="Predicted transcriptomic score in overall survival in European ancestry patients (all genes)\n - no risk weights")
+```
+
+The risk weights that are used to add effect sizes to the gene per the score add to the significance of the score. 
+
+#PTRS-Progression-free survival in breast cancer 
+```{r Predicted-TPRS score generation for progression-free survival, cache=TRUE, echo=FALSE, warning=FALSE}
+pfspredictedexpression <- read.table("Input/predicted_expression/BRCA/pfs-results_predicted_expression.txt", header=TRUE, as.is = TRUE)
+pfspredictedexpressionreference <- pfspredictedexpression
+
+pfspredictedexpression <- as.data.frame(t(pfspredictedexpression))
+names(pfspredictedexpression) <- pfspredictedexpression["IID",]
+
+pfspredictedexpression <- pfspredictedexpression[-1,] #Removing the FID row
+pfspredictedexpression <- pfspredictedexpression[-1,] #Removing the IID row 
+pfspredictedexpressiongene <- rownames(pfspredictedexpression)
+pfspredictedexpression <- as.data.frame(lapply(pfspredictedexpression, as.numeric))
+rownames(pfspredictedexpression) <- pfspredictedexpressiongene
+pfspredictedexpression$gene <- row.names(pfspredictedexpression)
+
+pfspredictedexpression <- merge(pfspredictedexpression, PTPRSweights, by="gene", all.x=TRUE)
+
+PTRSscoreraw <- gen.score(pfspredictedexpression, 697, 2, 695)
+PTRSscoredev <- PTRSscoreraw
+rownames(PTRSscoredev) <- pfspredictedexpressiongene
+
+PTRSoptimization <- calculate_trs(PTRSscoredev, PTPRSweights)
+
+pheno <- famOS %>% select(fullID,phenotype)
+names(pheno) = c("SUBJID", "phenotype") 
+
+perf_t = list()
+ptrs <- PTRSoptimization$ptrs
+ptrs$indiv = stringr::str_replace_all(ptrs$indiv, '\\.', '-')
+for(c in predixcan_cutoffs) {
+  perf_t[[as.character(c)]] = inner_join(pheno, ptrs %>% dplyr::filter(cutoff == c), by = c('SUBJID' = 'indiv'))
+}
+
+for(i in names(perf_t)) {
+    p = perf_t[[i]] %>% ggplot() + geom_density(aes(x = tprs, fill = factor(phenotype)), alpha = .5) + theme(legend.position = 'bottom')
+    p = p + ggtitle(paste0('p-value cutoff: ', i))
+    ggsave(paste0('~/Desktop/', 'ptrs_cutoff_', i, '.pdf'), p, height = 10, width = 6)
+  }
+
+PTRSscorefinal <- PTRSoptimization$ptrs %>% dplyr::filter(cutoff==1e-5)
+PTRSscorefinal$indiv = stringr::str_replace_all(PTRSscorefinal$indiv, '\\.', '-')
+PTRSscorefinal <- merge(PTRSscorefinal, famPFS, by.x="indiv", by.y="fullID")
+PTRSscorefinal <- PTRSscorefinal %>% select (indiv, tprs, cutoff, phenotype)
+```
+
+```{r Cox regression of Predicted TRS and recurrence, cache=TRUE, warning=FALSE, echo=FALSE}
+recurrencewhitePTRS <- merge(PTRSscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
+recurrencewhitePTRS$phenotype <- ifelse(recurrencewhitePTRS$phenotype=="2", "case", recurrencewhitePTRS$phenotype)
+recurrencewhitePTRS$phenotype <- ifelse(recurrencewhitePTRS$phenotype=="1", 0, recurrencewhitePTRS$phenotype)
+recurrencewhitePTRS$phenotype <- ifelse(recurrencewhitePTRS$phenotype=="case", 1, recurrencewhitePTRS$phenotype)
+
+#Cox regression of recurrence
+surv_objectPTRS <- Surv(time=recurrencewhitePTRS$pfs.months, event=as.numeric(recurrencewhitePTRS$phenotype))
+
+fit.coxphPTRS <- coxph(surv_objectPTRS ~ recurrencewhitePTRS$tprs,
+                   data = recurrencewhitePTRS)
+
+ggforest(fit.coxphPTRS, data = recurrencewhitePTRS, main="Predicted transcriptomic score in progression-free survival in European ancestry patients")
+```

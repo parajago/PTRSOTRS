@@ -1,0 +1,275 @@
+```{r}
+library(data.table)
+library(stringr)
+library(dplyr)
+library(lubridate)
+
+#Ovarian cancer
+setwd("~/Research-Local/2020-ptrsotrs/Input/ov_clinical_raw")
+
+temp <- read_tsv("CBioportal-OV-clinical-raw.tsv")
+temp <- temp %>% select(`Patient ID`, `Diagnosis Age`,`Form completion date`, `Fraction Genome Altered`, `MSI MANTIS Score`, `MSIsensor Score`, `Overall Survival (Months)`, `Overall Survival Status`, `Progression Free Status`, `Progress Free Survival (Months)`)
+colnames(temp) <- c("submitter_id", "age", "study.year", "genome", "MSI.MANTIS", "MSI.SENSOR", "oss.months", "oss.status", "pfs.status", "pfs.months")
+
+temp$study.year <- mdy(temp$study.year)
+temp$study.year <- year(temp$study.year)
+
+temp$age <- as.numeric(temp$age)
+temp$genome <- as.numeric(temp$genome)
+temp$MSI.MANTIS <- as.numeric(temp$MSI.MANTIS)
+temp$MSI.SENSOR <- as.numeric(temp$MSI.SENSOR)
+temp$oss.months <- as.numeric(temp$oss.months)
+temp$pfs.months <- as.numeric(temp$pfs.months)
+
+write.table(temp, "ov_formatted.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+setwd("~/Research-Local/2020-ptrsotrs/Input/pancan_clinical_raw")
+
+
+#Bladder cancer
+temp <- read_tsv("blca_tcga_pan_can_atlas_2018_clinical_data.tsv")
+
+temp <- temp %>% select(`Patient ID`, `Diagnosis Age`,`Neoplasm Disease Stage American Joint Committee on Cancer Code`, `Form completion date`, `Overall Survival (Months)`, `Overall Survival Status`, `Progression Free Status`, `Progress Free Survival (Months)`, `American Joint Committee on Cancer Metastasis Stage Code`, `Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code`, `American Joint Committee on Cancer Tumor Stage Code`)
+colnames(temp) <- c("submitter_id", "age", "stage", "study.year", "oss.months", "oss.status", "pfs.status", "pfs.months", "AJCCM", "AJCCN", "AJCCT")
+
+temp$study.year <- mdy(temp$study.year)
+temp$study.year <- year(temp$study.year)
+
+temp$age <- as.numeric(temp$age)
+temp$oss.months <- as.numeric(temp$oss.months)
+temp$pfs.months <- as.numeric(temp$pfs.months)
+
+write.table(temp, "blca_formatted.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+
+#Cervical cancer
+temp <- read_tsv("cesc_tcga_pan_can_atlas_2018_clinical_data.tsv")
+
+temp <- temp %>% select(`Patient ID`, `Diagnosis Age`,`Cancer Type`, `Form completion date`, `Overall Survival (Months)`, `Overall Survival Status`, `Progression Free Status`, `Progress Free Survival (Months)`, `American Joint Committee on Cancer Metastasis Stage Code`, `Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code`, `American Joint Committee on Cancer Tumor Stage Code`)
+colnames(temp) <- c("submitter_id", "age", "type", "study.year", "oss.months", "oss.status", "pfs.status", "pfs.months", "AJCCM", "AJCCN", "AJCCT")
+
+temp$study.year <- mdy(temp$study.year)
+temp$study.year <- year(temp$study.year)
+
+temp$age <- as.numeric(temp$age)
+temp$oss.months <- as.numeric(temp$oss.months)
+temp$pfs.months <- as.numeric(temp$pfs.months)
+
+write.table(temp, "cesc_formatted.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+
+#Colon cancer
+temp <- read_tsv("coadread_tcga_pan_can_atlas_2018_clinical_data.tsv")
+
+temp <- temp %>% select(`Patient ID`, `Diagnosis Age`,`Neoplasm Disease Stage American Joint Committee on Cancer Code`, `Form completion date`, `Overall Survival (Months)`, `Overall Survival Status`, `Progression Free Status`, `Progress Free Survival (Months)`, `American Joint Committee on Cancer Metastasis Stage Code`, `Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code`, `American Joint Committee on Cancer Tumor Stage Code`)
+colnames(temp) <- c("submitter_id", "age", "stage", "study.year", "oss.months", "oss.status", "pfs.status", "pfs.months", "AJCCM", "AJCCN", "AJCCT")
+
+temp$study.year <- mdy(temp$study.year)
+temp$study.year <- year(temp$study.year)
+
+temp$age <- as.numeric(temp$age)
+temp$oss.months <- as.numeric(temp$oss.months)
+temp$pfs.months <- as.numeric(temp$pfs.months)
+
+write.table(temp, "coad_formatted.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+
+#Esophageal cancer
+temp <- read_tsv("esca_tcga_pan_can_atlas_2018_clinical_data.tsv")
+
+temp <- temp %>% select(`Patient ID`, `Diagnosis Age`,`Neoplasm Disease Stage American Joint Committee on Cancer Code`, `Form completion date`, `Overall Survival (Months)`, `Overall Survival Status`, `Progression Free Status`, `Progress Free Survival (Months)`, `American Joint Committee on Cancer Metastasis Stage Code`, `Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code`, `American Joint Committee on Cancer Tumor Stage Code`)
+colnames(temp) <- c("submitter_id", "age", "stage", "study.year", "oss.months", "oss.status", "pfs.status", "pfs.months", "AJCCM", "AJCCN", "AJCCT")
+
+temp$study.year <- mdy(temp$study.year)
+temp$study.year <- year(temp$study.year)
+
+temp$age <- as.numeric(temp$age)
+temp$oss.months <- as.numeric(temp$oss.months)
+temp$pfs.months <- as.numeric(temp$pfs.months)
+
+write.table(temp, "esca_formatted.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+
+#Head and neck cancer
+temp <- read_tsv("hnsc_tcga_pan_can_atlas_2018_clinical_data.tsv")
+
+temp <- temp %>% select(`Patient ID`, `Diagnosis Age`,`Neoplasm Disease Stage American Joint Committee on Cancer Code`, `Form completion date`, `Overall Survival (Months)`, `Overall Survival Status`, `Progression Free Status`, `Progress Free Survival (Months)`, `American Joint Committee on Cancer Metastasis Stage Code`, `Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code`, `American Joint Committee on Cancer Tumor Stage Code`)
+colnames(temp) <- c("submitter_id", "age", "stage", "study.year", "oss.months", "oss.status", "pfs.status", "pfs.months", "AJCCM", "AJCCN", "AJCCT")
+
+temp$study.year <- mdy(temp$study.year)
+temp$study.year <- year(temp$study.year)
+
+temp$age <- as.numeric(temp$age)
+temp$oss.months <- as.numeric(temp$oss.months)
+temp$pfs.months <- as.numeric(temp$pfs.months)
+
+write.table(temp, "hnsc_formatted.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+
+
+#Kidney cancer
+temp <- read_tsv("kirp_tcga_pan_can_atlas_2018_clinical_data.tsv")
+
+temp <- temp %>% select(`Patient ID`, `Diagnosis Age`,`Neoplasm Disease Stage American Joint Committee on Cancer Code`, `Form completion date`, `Overall Survival (Months)`, `Overall Survival Status`, `Progression Free Status`, `Progress Free Survival (Months)`, `American Joint Committee on Cancer Metastasis Stage Code`, `Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code`, `American Joint Committee on Cancer Tumor Stage Code`)
+colnames(temp) <- c("submitter_id", "age", "stage", "study.year", "oss.months", "oss.status", "pfs.status", "pfs.months", "AJCCM", "AJCCN", "AJCCT")
+
+temp$study.year <- mdy(temp$study.year)
+temp$study.year <- year(temp$study.year)
+
+temp$age <- as.numeric(temp$age)
+temp$oss.months <- as.numeric(temp$oss.months)
+temp$pfs.months <- as.numeric(temp$pfs.months)
+
+write.table(temp, "kirp_formatted.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+
+
+#Lung adenocarcinoma - cancer
+temp <- read_tsv("luad_tcga_pan_can_atlas_2018_clinical_data.tsv")
+
+temp <- temp %>% select(`Patient ID`, `Diagnosis Age`,`Neoplasm Disease Stage American Joint Committee on Cancer Code`, `Form completion date`, `Overall Survival (Months)`, `Overall Survival Status`, `Progression Free Status`, `Progress Free Survival (Months)`, `American Joint Committee on Cancer Metastasis Stage Code`, `Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code`, `American Joint Committee on Cancer Tumor Stage Code`)
+colnames(temp) <- c("submitter_id", "age", "stage", "study.year", "oss.months", "oss.status", "pfs.status", "pfs.months", "AJCCM", "AJCCN", "AJCCT")
+
+temp$study.year <- mdy(temp$study.year)
+temp$study.year <- year(temp$study.year)
+
+temp$age <- as.numeric(temp$age)
+temp$oss.months <- as.numeric(temp$oss.months)
+temp$pfs.months <- as.numeric(temp$pfs.months)
+
+write.table(temp, "luad_formatted.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+
+#Lung squamous - cancer
+temp <- read_tsv("lusc_tcga_pan_can_atlas_2018_clinical_data.tsv")
+
+temp <- temp %>% select(`Patient ID`, `Diagnosis Age`,`Neoplasm Disease Stage American Joint Committee on Cancer Code`, `Form completion date`, `Overall Survival (Months)`, `Overall Survival Status`, `Progression Free Status`, `Progress Free Survival (Months)`, `American Joint Committee on Cancer Metastasis Stage Code`, `Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code`, `American Joint Committee on Cancer Tumor Stage Code`)
+colnames(temp) <- c("submitter_id", "age", "stage", "study.year", "oss.months", "oss.status", "pfs.status", "pfs.months", "AJCCM", "AJCCN", "AJCCT")
+
+temp$study.year <- mdy(temp$study.year)
+temp$study.year <- year(temp$study.year)
+
+temp$age <- as.numeric(temp$age)
+temp$oss.months <- as.numeric(temp$oss.months)
+temp$pfs.months <- as.numeric(temp$pfs.months)
+
+write.table(temp, "lusc_formatted.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+
+#Pancreatic cancer
+temp <- read_tsv("paad_tcga_pan_can_atlas_2018_clinical_data.tsv")
+
+temp <- temp %>% select(`Patient ID`, `Diagnosis Age`,`Neoplasm Disease Stage American Joint Committee on Cancer Code`, `Form completion date`, `Overall Survival (Months)`, `Overall Survival Status`, `Progression Free Status`, `Progress Free Survival (Months)`, `American Joint Committee on Cancer Metastasis Stage Code`, `Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code`, `American Joint Committee on Cancer Tumor Stage Code`)
+colnames(temp) <- c("submitter_id", "age", "stage", "study.year", "oss.months", "oss.status", "pfs.status", "pfs.months", "AJCCM", "AJCCN", "AJCCT")
+
+temp$study.year <- mdy(temp$study.year)
+temp$study.year <- year(temp$study.year)
+
+temp$age <- as.numeric(temp$age)
+temp$oss.months <- as.numeric(temp$oss.months)
+temp$pfs.months <- as.numeric(temp$pfs.months)
+
+write.table(temp, "paad_formatted.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+
+
+#Sarcoma cancer
+temp <- read_tsv("sarc_tcga_pan_can_atlas_2018_clinical_data.tsv")
+
+temp <- temp %>% select(`Patient ID`, `Diagnosis Age`,`Cancer Type`, `Form completion date`, `Overall Survival (Months)`, `Overall Survival Status`, `Progression Free Status`, `Progress Free Survival (Months)`, `American Joint Committee on Cancer Metastasis Stage Code`, `Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code`, `American Joint Committee on Cancer Tumor Stage Code`)
+colnames(temp) <- c("submitter_id", "age", "type", "study.year", "oss.months", "oss.status", "pfs.status", "pfs.months", "AJCCM", "AJCCN", "AJCCT")
+
+temp$study.year <- mdy(temp$study.year)
+temp$study.year <- year(temp$study.year)
+
+temp$age <- as.numeric(temp$age)
+temp$oss.months <- as.numeric(temp$oss.months)
+temp$pfs.months <- as.numeric(temp$pfs.months)
+
+write.table(temp, "sarc_formatted.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+
+#Stomach cancer
+temp <- read_tsv("stad_tcga_pan_can_atlas_2018_clinical_data.tsv")
+
+temp <- temp %>% select(`Patient ID`, `Diagnosis Age`,`Neoplasm Disease Stage American Joint Committee on Cancer Code`, `Form completion date`, `Overall Survival (Months)`, `Overall Survival Status`, `Progression Free Status`, `Progress Free Survival (Months)`, `American Joint Committee on Cancer Metastasis Stage Code`, `Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code`, `American Joint Committee on Cancer Tumor Stage Code`)
+colnames(temp) <- c("submitter_id", "age", "stage", "study.year", "oss.months", "oss.status", "pfs.status", "pfs.months", "AJCCM", "AJCCN", "AJCCT")
+
+temp$study.year <- mdy(temp$study.year)
+temp$study.year <- year(temp$study.year)
+
+temp$age <- as.numeric(temp$age)
+temp$oss.months <- as.numeric(temp$oss.months)
+temp$pfs.months <- as.numeric(temp$pfs.months)
+
+write.table(temp, "stad_formatted.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+
+
+#Uterine cancer
+temp <- read_tsv("ucec_tcga_pan_can_atlas_2018_clinical_data.tsv")
+
+temp <- temp %>% select(`Patient ID`, `Diagnosis Age`,`Cancer Type`, `Form completion date`, `Overall Survival (Months)`, `Overall Survival Status`, `Progression Free Status`, `Progress Free Survival (Months)`, `American Joint Committee on Cancer Metastasis Stage Code`, `Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code`, `American Joint Committee on Cancer Tumor Stage Code`)
+colnames(temp) <- c("submitter_id", "age", "type", "study.year", "oss.months", "oss.status", "pfs.status", "pfs.months", "AJCCM", "AJCCN", "AJCCT")
+
+temp$study.year <- mdy(temp$study.year)
+temp$study.year <- year(temp$study.year)
+
+temp$age <- as.numeric(temp$age)
+temp$oss.months <- as.numeric(temp$oss.months)
+temp$pfs.months <- as.numeric(temp$pfs.months)
+
+write.table(temp, "ucec_formatted.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+
+
+
+
+
+
+
+, select=c(1,24,25,26,40,41,42,43,44,45,46,47))
+write.table(temp, "BCAC_2020_metaanalysis_formatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+#Subtypes
+temp2 <- fread ("icogs_onco_meta_intrinsic_subtypes_summary_level_statistics.txt", select=c(1,21,22,23,40,41,42,43,44,45,46,47,48,49,50,51,52,53))
+
+LumA <- temp2 %>% select(var_name, SNP.Onco, chr.Onco, Position.Onco, Effect.Meta, Baseline.Meta, Luminal_A_log_or_meta, Luminal_A_se_meta)
+LumA$OR_meta <- exp(LumA$Luminal_A_log_or_meta)
+write.table(LumA, "BCAC_2020_LumA_formatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+LumB <- temp2 %>% select(var_name, SNP.Onco, chr.Onco, Position.Onco, Effect.Meta, Baseline.Meta, Luminal_B_log_or_meta, Luminal_B_se_meta)
+LumB$OR_meta <- exp(LumB$Luminal_B_log_or_meta)
+write.table(LumB, "BCAC_2020_LumB_formatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+HER2 <- temp2 %>% select(var_name, SNP.Onco, chr.Onco, Position.Onco, Effect.Meta, Baseline.Meta, HER2_Enriched_log_or_meta, HER2_Enriched_se_meta)
+HER2$OR_meta <- exp(HER2$HER2_Enriched_log_or_meta)
+write.table(HER2, "BCAC_2020_HER2_formatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+TNBC <- temp2 %>% select(var_name, SNP.Onco, chr.Onco, Position.Onco, Effect.Meta, Baseline.Meta, Triple_Neg_log_or_meta, Triple_Neg_se_meta)
+TNBC$OR_meta <- exp(TNBC$Triple_Neg_log_or_meta)
+write.table(TNBC, "BCAC_2020_TNBC_formatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+setwd("~/Research-Local/2019-tprs/Input/AA-summarystats")
+
+#AMBER formatting
+amber <- fread ("AMBER/allBC_AMBER.assoc.txt")
+amber$variant <- amber$marker
+amber <- separate(amber, col="marker", into=c("chr", "pos"), sep="([:])")
+amber$pval <- amber$`Pr(>|z|)`
+amber$`Pr(>|z|)` <- NULL
+write.table(amber, "AMBER_formatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+amber2 <- fread("AMBER/AMBER_fullharmonized.txt")
+amber2$variant_id <- amber2$panel_variant_id
+amber2$variant_id <- gsub("^.{0,3}", "", amber2$variant_id)
+amber2$variant_id <- substr(amber2$variant_id,1,nchar(amber2$variant_id)-4)
+write.table(amber2, "AMBER_fullharmonizedformatted.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+#African ancestry aliquot extraction
+setwd("~/Research-Local/2019-tprs/Input/ids")
+brcaall <- fread ("brca.samples.tsv")
+brcaall <- brcaall %>% filter (pop=="AFR")
+brcaall <- brcaall$start
+write.table(brcaall, "BRCA.AFR.aliquot.tsv", sep="\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
+```

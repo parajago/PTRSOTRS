@@ -1,5 +1,5 @@
 ---
-title: "Predicted Transcriptomic / Observed Transcriptomic Score Project"
+title: "Developing an integrated prognostic score using germline risk variants and RNA expression from primary breast and ovarian cancers for prognostication of survival across subtypes"
 
 site: workflowr::wflow_site
 output:
@@ -9,17 +9,34 @@ output:
     theme: spacelab
     highlight: textmate
 ---
+<h3> Project Authors: </h3>
+Padma Sheila Rajagopal <br>
+Yanyu Liang <br>
+Alvaro Barbeira <br>
+Owen Melia <br>
+Jiamao Zheng <br>
+Yonglan Zheng <br>
+Toshio Yoshimatsu <br>
+Dezheng Huo <br>
+Guimin Gao <br>
+Olufunmilayo I. Olopade <br>
+Hae Kyung Im <br>
 
-Padma Sheila Rajagopal, MD MPH
-Olopade Lab / Im Lab Postdoctoral Fellow
+<p->The manuscript for this project is currently in progress. Methods and manuscript draft are available on request. </p>
 
-This is the site I will use for reporting on a project in which I am integrating germline risk information with transcriptomic methods (observed vs. predicted from germline) to better stratify breast cancer patients. 
+<h3> Analysis Roadmap: </h3>
+<p>Generation of <a href="https://parajago.github.io/PTRSOTRS/PRS.html">polygenic score (control)</a> and test of performance in breast cancer using Cox proportional hazards</p>
 
-Analysis as below:
+<p>Generation of <a href="https://parajago.github.io/PTRSOTRS/PTRS.html">predicted transcriptomic score</a> and test of performance in breast cancer using Cox proportional hazards</p>
 
-* https://docs.google.com/document/d/1Rhp67Yp_OLxVNAe6u_zVeh2_mQKkTXvN3qqdwCjDM8M/edit?usp=sharing Methods for this project 
+<p>Generation of <a href="https://parajago.github.io/PTRSOTRS/OTRS.html">observed transcriptomic score</a> and test of performance in breast cancer using Cox proportional hazards</p>
 
-* https://docs.google.com/document/d/17LzTapv50UOhJs7c0-8cECFKyZJPz7Umxup2zE6NNdo/edit?usp=sharing Results for this project 
+<p>Performance of PTRS/OTRS across <a href="https://parajago.github.io/PTRSOTRS/subtype.html">breast cancer subtypes</a></p>
 
-* Score calculation and performance testing: 
-https://parajago.github.io/PTRSOTRS/TRSscorecalculator.html
+<p>Test of performance across p-value thresholds: <a href="https://liangyy.github.io/tcga-survival/brca_cox.html">link</a></p>
+
+<p>Validation in ovarian cancer: <a href="https://liangyy.github.io/tcga-survival/index.html#3_OV_cohort">link</a></p>
+
+<p>Data (figures and tables used in the manuscript as well as supplementary material) will be made available once the manuscript is complete. 
+Functions used throughout the analysis are described and displayed here. </p>
+</main>
