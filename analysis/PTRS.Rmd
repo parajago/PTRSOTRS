@@ -86,6 +86,7 @@ This is the code to generate the predicted transcriptomic risk score and assess 
 The predicted transcriptomic score is derived from using the weight of a gene's association to germline risk of breast cancer * predicted expression of that gene, summed across different thresholds of signifcance. 
 
 ```{r Predicted-TPRS score generation for overall survival, cache=TRUE, warning=FALSE, echo=FALSE}
+setwd("~/Research-Local/2020-ptrsotrs")
 ospredictedexpression <- read.table("Input/predicted_expression/BRCA/os-results_predicted_expression.txt", header=TRUE, as.is = TRUE)
 ospredictedexpressionreference <- ospredictedexpression
 PTRSOSgroup <- ospredictedexpressionreference$IID
@@ -110,9 +111,6 @@ PTRSscoredev <- PTRSscoreraw
 rownames(PTRSscoredev) <- ospredictedexpressiongene
 
 PTRSoptimization <- calculate_trs(PTRSscoredev, PTPRSweights)
-
-calculate_trs = function(expression_df, effect_size_df, pvalue_cutoffs = c(5e-8, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1))
-
 pheno <- famOS %>% select(fullID,phenotype)
 names(pheno) = c("SUBJID", "phenotype") 
 
@@ -204,6 +202,7 @@ The risk weights that are used to add effect sizes to the gene per the score add
 
 #PTRS-Progression-free survival in breast cancer 
 ```{r Predicted-TPRS score generation for progression-free survival, cache=TRUE, echo=FALSE, warning=FALSE}
+setwd("~/Research-Local/2020-ptrsotrs")
 pfspredictedexpression <- read.table("Input/predicted_expression/BRCA/pfs-results_predicted_expression.txt", header=TRUE, as.is = TRUE)
 pfspredictedexpressionreference <- pfspredictedexpression
 
