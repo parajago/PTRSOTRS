@@ -97,7 +97,7 @@ names(famPFS)<-c("submitter_id","fullID","within-family-father","within-family-m
 
 save.image("Input/PTRSOTRS.RData")
 ```
-#PRS score: Germline risk, genomic data only
+# PRS score: Germline risk, genomic data only
 This is the code to generate the polygenic risk score (as a form of control, genomic only) and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. The PRS used here is the 313-SNP score as identified by Mavaddat et al (AJHG, 2019).
 ```{r PRS score generation, cache=TRUE, warning=FALSE, echo=FALSE}
 setwd("~/Research-Local/2020-ptrsotrs")
@@ -186,7 +186,7 @@ PRSscorefinalPFS <- merge(PRSscorefinal, famPFS, by.x="fullID", by.y="submitter_
 PRSscorefinalPFS <- PRSscorefinalPFS %>% dplyr::select (fullID, score, Z_score, pval, cutoff, phenotype)
 ```
 
-#PRS-Overall survival in breast cancer 
+# PRS-Overall survival in breast cancer 
 ```{r Cox regression of PRS on overall survival, cache=TRUE, warning=FALSE, echo=FALSE}
 survivalwhite <- merge(PRSscorefinalOS, TCGAavail)
 survivalwhite$phenotype <- ifelse(survivalwhite$phenotype=="2", "case", survivalwhite$phenotype)
@@ -204,7 +204,7 @@ ggforest(fit.coxph, data = survivalwhite, main="Polygenic risk score in overall 
 
 In a univariate analysis, PRS score is not significantly associated with overall survival in breast cancer (OS)
 
-#PRS-Progression free survival in breast cancer
+# PRS-Progression free survival in breast cancer
 ```{r Cox regression of PRS on recurrence, cache=TRUE, warning=FALSE, echo=FALSE}
 recurrencewhite <- merge(PRSscorefinalPFS, TCGAavail)
 recurrencewhite$phenotype <- ifelse(recurrencewhite$phenotype=="2", "case", recurrencewhite$phenotype)

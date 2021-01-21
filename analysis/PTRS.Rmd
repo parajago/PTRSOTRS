@@ -1,7 +1,7 @@
 ---
 title: "Generation of predicted transcriptomic risk score in patients with breast cancer"
 author: "Padma Sheila Rajagopal, MD MPH"
-date: "1/13/2020"
+date: "1/20/2020"
 
 site: workflowr::wflow_site
 output:
@@ -80,7 +80,7 @@ calculate_trs = function(expression_df, effect_size_df, pvalue_cutoffs = c(5e-8,
 }
 ```
 
-#Germline risk: Predicted transcriptomic score (PTRS)
+# Predicted transcriptomic score (PTRS)
 This is the code to generate the predicted transcriptomic risk score and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
 
 The predicted transcriptomic score is derived from using the weight of a gene's association to germline risk of breast cancer * predicted expression of that gene, summed across different thresholds of signifcance. 
@@ -133,7 +133,7 @@ PTRSscorefinal <- merge(PTRSscorefinal, famOS, by.x="indiv", by.y="fullID")
 PTRSscorefinal <- PTRSscorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
-#PTRS-Overall survival in breast cancer 
+# PTRS-Overall survival in breast cancer 
 ```{r Cox regression of Predicted TRS and overall survival, cache=TRUE, warning=FALSE, echo=FALSE}
 survivalwhitePTRS <- merge(PTRSscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
 survivalwhitePTRS$phenotype <- ifelse(survivalwhitePTRS$phenotype=="2", "case", survivalwhitePTRS$phenotype)
@@ -149,9 +149,9 @@ fit.coxphPTRS <- coxph(surv_objectPTRS ~ survivalwhitePTRS$tprs,
 ggforest(fit.coxphPTRS, data = survivalwhitePTRS, main="Predicted transcriptomic score in overall survival in European ancestry patients")
 ```
 
-We see an association between PTRS (predicted transcriptomic) score and overall survival. This score incorporates the germline in both genes associated with risk (by weights) and in terms of the predicted transcriptome. 
+In a univariate analysis, PTRS does demonstrate a significant assoication with overall survival (OS). Of note, the direction of effect is not as expected, and the threshold of significance is borderline. This score incorporates the germline in both genes associated with risk (by weights) and in terms of the predicted transcriptome. 
 
-#Control for Predicted-TPRS score - overall transcriptome and overall survival
+# Control for Predicted-TPRS score - overall transcriptome and overall survival
 ```{r Control.1 for Predicted-TPRS score - overall transcriptome without risk-based effect size and overall survival, cache=TRUE, warning=FALSE, echo=FALSE}
 ospredictedexpressioncontrol1 <- ospredictedexpressionreference
 ospredictedexpressioncontrol1 <- as.data.frame(t(ospredictedexpressioncontrol1))
@@ -198,9 +198,9 @@ fit.coxphPTRScontrol <- coxph(surv_objectPTRScontrol ~ survivalwhitePTRScontrol$
 ggforest(fit.coxphPTRScontrol, data = survivalwhitePTRScontrol, main="Predicted transcriptomic score in overall survival in European ancestry patients (all genes)\n - no risk weights")
 ```
 
-The risk weights that are used to add effect sizes to the gene per the score add to the significance of the score. 
+In a univariate analysis, just using the germline predicted expression values without the weighting based on risk is not significantly associated with OS. 
 
-#PTRS-Progression-free survival in breast cancer 
+# PTRS-Progression-free survival in breast cancer 
 ```{r Predicted-TPRS score generation for progression-free survival, cache=TRUE, echo=FALSE, warning=FALSE}
 setwd("~/Research-Local/2020-ptrsotrs")
 pfspredictedexpression <- read.table("Input/predicted_expression/BRCA/pfs-results_predicted_expression.txt", header=TRUE, as.is = TRUE)
@@ -260,3 +260,5 @@ fit.coxphPTRS <- coxph(surv_objectPTRS ~ recurrencewhitePTRS$tprs,
 
 ggforest(fit.coxphPTRS, data = recurrencewhitePTRS, main="Predicted transcriptomic score in progression-free survival in European ancestry patients")
 ```
+
+In a univariate analysis, PTRS is not significantly associated with progression-free survival in breast cancer. 

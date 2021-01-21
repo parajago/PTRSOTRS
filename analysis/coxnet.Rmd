@@ -1,0 +1,346 @@
+---
+title: "Evaluation of performance of PTRS/OTRS when incorporating clinical risk factors"
+author: "Padma Sheila Rajagopal, MD MPH"
+date: "1/20/2020"
+
+site: workflowr::wflow_site
+output:
+  workflowr::wflow_html:
+    df_print: paged
+    toc: true
+    theme: spacelab
+    highlight: textmate
+---
+```{r DATA setup, warning=FALSE, include=FALSE, echo=FALSE}
+rm(list = ls())
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(data.table)
+library(pander)
+library(ggExtra)
+library(survival)
+library(survminer)
+library(stringr)
+library(glmnet)
+library(survival)
+library(factoextra)
+library(flashClust)
+knitr::opts_chunk$set(autodep = TRUE)
+options(datatable.fread.datatable = F)
+options(stringsAsFactors = F)
+panderOptions('table.split.table', Inf)
+predixcan_cutoffs = c(5e-8, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1)
+
+setwd("~/Research-Local/2020-ptrsotrs")
+load("Input/PTRSOTRS.RData")
+
+gen.score <- function(df, x, a, b) { 
+  ## extract the objective column
+  df1 = df[,a:b]
+  col = df[, x]
+  df1 * col
+}
+
+calculate_trs = function(expression_df, effect_size_df, pvalue_cutoffs = c(5e-8, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1)) {
+  # expression_df should have rownames as gene id and colnames as individual id
+  # effect_size_df should have 
+  #     1. column named gene with gene id;
+  #     2. column named effect_size as effect size;
+  #     3. column named pvalue as pvalue
+  
+  # first of all, we remove genes with crazily large effect size (they will skew the PTRS distribution)
+  effect_size_df_cleaned = effect_size_df %>% filter(abs(effect_size) < 5)
+  
+  # limit analysis to genes occcur in both expression_df and effect_size_df
+  pred_expr_gene_pool = rownames(expression_df)
+  predixcan_gene_pool = effect_size_df_cleaned$gene
+  gene_pool_intersect = intersect(pred_expr_gene_pool, predixcan_gene_pool)
+  
+  # loop over p-value cutoffs and calculate PTRS at each cutoff
+  out = list()
+  outgenes = list()
+  for(c in pvalue_cutoffs) {
+    predixcan_i = effect_size_df_cleaned %>% filter(gene %in% gene_pool_intersect)
+    beta_gene = predixcan_i %>% filter(pvalue < c) %>% select(gene, effect_size)
+    outgenes[[length(outgenes) + 1]] = beta_gene %>% mutate(cutoff = c)
+    indiv = colnames(expression_df) 
+    mat = t(expression_df)
+    mat = mat[, colnames(mat) %in% beta_gene$gene, drop = F]
+    mat = mat[, match(beta_gene$gene, colnames(mat)), drop = F]
+    tprs_i = as.matrix(mat) %*% beta_gene$effect_size
+    df_tprs = data.frame(indiv = indiv, tprs = tprs_i, cutoff = c)
+    rownames(df_tprs) = NULL
+    out[[length(out) + 1]] = df_tprs
+  }
+  out = do.call(rbind, out)
+  outgenes = do.call(rbind, outgenes)
+  list(ptrs = out, selected_genes = outgenes)
+}
+```
+
+#Setting up datasets for alternate models
+```{r Alternate model dataset setup, warning=FALSE, include=FALSE, echo=FALSE}
+#Setting up survival data for use of subsequent machine learning models
+OS_vector <- survivalwhite %>% select(submitter_id, phenotype, oss.months)
+OS_vector_names <- OS_vector$submitter_id
+
+#Predicted transcriptome in breast patients and overall survival
+ptrs_os_model <- ospredictedexpressionreference
+ptrs_os_model <- ptrs_os_model %>% filter(ptrs_os_model$IID %in% OS_vector_names)
+ptrs_os_model <- merge (ptrs_os_model, OS_vector, by.x="IID", by.y="submitter_id")
+ptrs_os_model$phenotype <- as.numeric(ptrs_os_model$phenotype)
+ptrs_os_model$FID <- NULL
+colnames(ptrs_os_model)[1] <- "submitter_id"
+row.names(ptrs_os_model) <- ptrs_os_model$submitter_id
+ptrs_os_model$submitter_id <- NULL
+```
+
+# Alternate models: OS: BGLM-Cox / BGLM Weibull
+```{r OS ML models with BGLM-Cox and BGLM-Weibull, warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
+library(CoxBoost)
+
+coxboost_ptrs_os_model <- CoxBoost(ptrs_os_model[,'oss.months'],ptrs_os_model[,'phenotype'],ptrs_os_model[,1:6461], standardize=TRUE, stepno=200, criterion="pscore", stepsize.factor=1, sf.scheme="linear", x.is.01=TRUE) #Cox boost performed on predicted transcriptome alone results in 89 non-zero coefficients
+
+
+p.n.trees <- c(500,1000)
+p_lr <- c(0.01,0.05)
+p_interactiondepth <- c(2,3,5)
+p_minobs <- c(10)
+
+gbmgrid <- expand.grid( n.trees=p.n.trees,
+                        interaction.depth=p_interactiondepth,
+                        shrinkage=p_lr,
+                        n.minobsinnode =p_minobs)
+
+temp <- capture.output(gbm.model <- train(outcome ~ .,
+                                          data=training, 
+                                          method = 'gbm', 
+                                          trControl = fitControl4, 
+                                          tuneGrid=gbmgrid,
+                                          verbose=FALSE))
+
+gbm.pred <- predict(object = gbm.model, testing, type = "prob")
+testing$predicted_gbm <- gbm.pred$`1`
+
+gbm.perf <- roc(response = testing$outcome, 
+                  predictor = testing$predicted_gbm)
+
+print(auc(gbm.perf))
+print(ci.auc(gbm.perf))
+
+
+#Overall survival of OS-PTRS based on Boosted gradient linear model-Cox model (from mboost)
+
+#surv_objectPTRS_genefeatures <- Surv(time=survivalwhitePTRS_genefeatures$oss.months, event=as.numeric(survivalwhitePTRS_genefeatures$phenotype))
+
+#fit.OSPTRS_BGLMCox <- glmboost(surv_objectPTRS_genefeatures ~ENSG00000000457.13+ENSG00000001036.13+ENSG00000001167.14+ENSG00000001460.17+ENSG00000001617.11+ENSG00000002745.12+ENSG00000002746.14+ENSG00000002919.14+ENSG00000002933.7+ENSG00000003393.14+ENSG00000004809.13+ENSG00000005102.12+ENSG00000005882.11+ENSG00000006282.20+ENSG00000007376.7+ENSG00000008282.8+ENSG00000021300.13, data = survivalwhitePTRS_genefeatures, family=CoxPH(), control=boost_control(mstop=500))
+
+#ggforest(fit.OSPTRS_BGLMCox, data = survivalwhitePTRS_genefeatures)
+
+#Parameter Values
+#signature size 2,3,4,5,7,10
+#𝛼 0.001,0.01,0.05
+#𝜆 lambda.min,lambda.1se
+#mStop 200
+
+#BGLM-Weibull
+```
+
+# Alternate models: PFS: MSR-RF / Boosted Trees 
+```{r PFS ML models with MSR-RF and Boosted Trees,  warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
+```
+
+# Alternate models: COXNNET with no selection
+```{r Coxnet model of overall survival with germline genome PRS OTRS and PTRS, warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
+#OS x predicted transriptome
+os_ptrs_variance_fit_cv <- cv.glmnet(os_ptrs_variance_all[,1:6461], Surv(os_ptrs_variance_all[,'oss.months'], os_ptrs_variance_all[,'phenotype']), family="cox", maxit = 1000, relax=TRUE)
+plot(os_ptrs_variance_fit_cv)
+
+os_ptrs_variance_fit <- glmnet(os_ptrs_variance_all[,1:6461], Surv(os_ptrs_variance_all[,'oss.months'], os_ptrs_variance_all[,'phenotype']), family="cox", maxit = 1000)
+
+Coefficients <- coef(os_ptrs_variance_fit, s = os_ptrs_variance_fit_cv$lambda.min)
+Active.Index <- which(Coefficients != 0)
+Active.Coefficients <- Coefficients[Active.Index]
+subset <- os_ptrs_variance_all[,Active.Index]
+os_ptrs_genes <- colnames(subset)
+print(os_ptrs_genes)
+#write.table(os_ptrs_genes, file="os_ptrs_genes.txt", quote=F, row.names =F, col.names =F)
+
+#PFS x predicted transcriptome
+PFS_vector <- recurrencewhite %>% select(submitter_id, phenotype, pfs.months)
+PFS_vector <- PFS_vector %>% filter(pfs.months>0)
+row.names(PFS_vector) <- PFS_vector$submitter_id
+PFS_vector_rownames <- row.names(PFS_vector)
+PFS_vector$submitter_id <- NULL
+PFS_vector <- as.data.frame(lapply(PFS_vector, as.numeric))
+row.names(PFS_vector) <- PFS_vector_rownames
+PFS_vector <- as.matrix(PFS_vector)
+
+pfs_ptrs_variance <- pfspredictedexpressionreference
+pfs_ptrs_variance = pfs_ptrs_variance %>% filter(pfs_ptrs_variance$IID %in% PFS_vector_rownames)
+row.names(pfs_ptrs_variance) <- pfs_ptrs_variance$IID
+pfs_ptrs_variance_rownames <- row.names(pfs_ptrs_variance)
+pfs_ptrs_variance$FID <- NULL
+pfs_ptrs_variance$IID <- NULL
+pfs_ptrs_variance <- as.data.frame(lapply(pfs_ptrs_variance, as.numeric))
+row.names(pfs_ptrs_variance) <- pfs_ptrs_variance_rownames
+pfs_ptrs_variance <- as.matrix(pfs_ptrs_variance)
+
+pfs_ptrs_variance_all <- cbind (pfs_ptrs_variance, PFS_vector)
+
+pfs_ptrs_variance_cv <- cv.glmnet(pfs_ptrs_variance_all[,1:6461], Surv(pfs_ptrs_variance_all[,'pfs.months'], pfs_ptrs_variance_all[,'phenotype']), family="cox", maxit = 1000, relax = TRUE)
+plot(pfs_ptrs_variance_cv)
+
+pfs_ptrs_variance_fit <- glmnet(pfs_ptrs_variance_all[,1:6461], Surv(pfs_ptrs_variance_all[,'pfs.months'], pfs_ptrs_variance_all[,'phenotype']), family="cox", maxit = 1000, gamma=0)
+
+Coefficients <- coef(pfs_ptrs_variance_fit, s = pfs_ptrs_variance_cv$lambda.min)
+Active.Index <- which(Coefficients != 0)
+Active.Coefficients <- Coefficients[Active.Index]
+subset <- pfs_ptrs_variance_all[,Active.Index]
+pfs_ptrs_genes <- colnames(subset)
+print(pfs_ptrs_genes)
+#write.table(pfs_ptrs_genes, file="pfs_ptrs_genes.txt", quote=F, row.names =F, col.names =F)
+
+#OS x observed transriptome
+observedexpressionvariance <- read.table("Input/TCGA-BRCA-RNA/TCGA-BRCA_mRNA.csv", header=TRUE, sep=",")
+
+observedexpressionvariance$submitter_id_long <- substr(observedexpressionvariance$aliquot_barcode, 1, 16)
+
+observedexpressionvariance$submitter_id <- substr(observedexpressionvariance$aliquot_barcode, 1, 12)
+
+observedexpressionvariance = observedexpressionvariance %>% filter(observedexpressionvariance$submitter_id %in% samplesEURmatch)
+
+observedexpressionvariance = observedexpressionvariance %>% filter(substr(observedexpressionvariance$submitter_id_long, 14, 16)=="01A") #Isolates to primary tumor only, 682 samples remaining
+
+observedexpressionvariance$aliquot_barcode <- NULL
+observedexpressionvariance$submitter_id_long <- NULL
+
+os_otrs_variance <- observedexpressionvariance
+row.names(os_otrs_variance) <- os_otrs_variance$submitter_id
+os_otrs_variance_rownames <- row.names(os_otrs_variance)
+os_otrs_variance$submitter_id <- NULL
+os_otrs_variance <- as.data.frame(lapply(os_otrs_variance, as.numeric))
+row.names(os_otrs_variance) <- os_otrs_variance_rownames
+os_otrs_variance <- as.matrix(os_otrs_variance)
+
+OS_vector2 <- survivalwhite %>% select(submitter_id, phenotype, oss.months)
+OS_vector2 = OS_vector2 %>% filter(OS_vector2$submitter_id %in% os_otrs_variance_rownames)
+OS_vector2 <- OS_vector2 %>% filter(oss.months>0)
+row.names(OS_vector2) <- OS_vector2$submitter_id
+OS_vector2_rownames <- row.names(OS_vector2)
+OS_vector2$submitter_id <- NULL
+OS_vector2 <- as.data.frame(lapply(OS_vector2, as.numeric))
+row.names(OS_vector2) <- OS_vector2_rownames
+OS_vector2 <- as.matrix(OS_vector2)
+
+os_otrs_variance <- observedexpressionvariance
+os_otrs_variance = os_otrs_variance %>% filter(os_otrs_variance$submitter_id %in% OS_vector2_rownames)
+row.names(os_otrs_variance) <- os_otrs_variance$submitter_id
+os_otrs_variance_rownames <- row.names(os_otrs_variance)
+os_otrs_variance$submitter_id <- NULL
+os_otrs_variance <- as.data.frame(lapply(os_otrs_variance, as.numeric))
+row.names(os_otrs_variance) <- os_otrs_variance_rownames
+os_otrs_variance <- as.matrix(os_otrs_variance)
+
+os_otrs_variance_all <- cbind (os_otrs_variance, OS_vector2)
+
+os_otrs_variance_fit_cv <- cv.glmnet(os_otrs_variance_all[,1:17321], Surv(os_otrs_variance_all[,'oss.months'], os_otrs_variance_all[,'phenotype']), family="cox", maxit = 1000, relax=TRUE)
+plot(os_otrs_variance_fit_cv)
+
+os_otrs_variance_fit <- glmnet(os_otrs_variance_all[,1:17321], Surv(os_otrs_variance_all[,'oss.months'], os_otrs_variance_all[,'phenotype']), family="cox", maxit = 1000, gamma=0)
+
+Coefficients <- coef(os_otrs_variance_fit, s = os_otrs_variance_fit_cv$lambda.min)
+Active.Index <- which(Coefficients != 0)
+Active.Coefficients <- Coefficients[Active.Index]
+subset <- os_otrs_variance_all[,Active.Index]
+os_otrs_genes <- colnames(subset)
+print(os_otrs_genes)
+#write.table(os_otrs_genes, file="os_otrs_genes.txt", quote=F, row.names =F, col.names =F)
+
+#PFS x observed transriptome
+pfs_otrs_variance <- observedexpressionvariance
+row.names(pfs_otrs_variance) <- pfs_otrs_variance$submitter_id
+pfs_otrs_variance_rownames <- row.names(pfs_otrs_variance)
+pfs_otrs_variance$submitter_id <- NULL
+pfs_otrs_variance <- as.data.frame(lapply(pfs_otrs_variance, as.numeric))
+row.names(pfs_otrs_variance) <- pfs_otrs_variance_rownames
+pfs_otrs_variance <- as.matrix(pfs_otrs_variance)
+
+PFS_vector2 <- recurrencewhite %>% select(submitter_id, phenotype, pfs.months)
+PFS_vector2 = PFS_vector2 %>% filter(PFS_vector2$submitter_id %in% pfs_otrs_variance_rownames)
+PFS_vector2 <- PFS_vector2 %>% filter(pfs.months>0)
+row.names(PFS_vector2) <- PFS_vector2$submitter_id
+PFS_vector2_rownames <- row.names(PFS_vector2)
+PFS_vector2$submitter_id <- NULL
+PFS_vector2 <- as.data.frame(lapply(PFS_vector2, as.numeric))
+row.names(PFS_vector2) <- PFS_vector2_rownames
+PFS_vector2 <- as.matrix(PFS_vector2)
+
+pfs_otrs_variance <- observedexpressionvariance
+pfs_otrs_variance = pfs_otrs_variance %>% filter(pfs_otrs_variance$submitter_id %in% PFS_vector2_rownames)
+row.names(pfs_otrs_variance) <- pfs_otrs_variance$submitter_id
+pfs_otrs_variance_rownames <- row.names(pfs_otrs_variance)
+pfs_otrs_variance$submitter_id <- NULL
+pfs_otrs_variance <- as.data.frame(lapply(pfs_otrs_variance, as.numeric))
+row.names(pfs_otrs_variance) <- pfs_otrs_variance_rownames
+pfs_otrs_variance <- as.matrix(pfs_otrs_variance)
+
+pfs_otrs_variance_all <- cbind (pfs_otrs_variance, PFS_vector2)
+
+pfs_otrs_variance_fit_cv <- cv.glmnet(pfs_otrs_variance_all[,1:17321], Surv(pfs_otrs_variance_all[,'pfs.months'], pfs_otrs_variance_all[,'phenotype']), family="cox", maxit = 1000, relax=TRUE)
+plot(pfs_otrs_variance_fit_cv)
+
+pfs_otrs_variance_fit <- glmnet(pfs_otrs_variance_all[,1:17321], Surv(pfs_otrs_variance_all[,'pfs.months'], pfs_otrs_variance_all[,'phenotype']), family="cox", maxit = 1000, gamma=0)
+
+Coefficients <- coef(pfs_otrs_variance_fit, s = pfs_otrs_variance_fit_cv$lambda.min)
+Active.Index <- which(Coefficients != 0)
+Active.Coefficients <- Coefficients[Active.Index]
+subset <- pfs_otrs_variance_all[,Active.Index]
+pfs_otrs_genes <- colnames(subset)
+print(pfs_otrs_genes)
+#write.table(pfs_otrs_genes, file="pfs_otrs_genes.txt", quote=F, row.names =F, col.names =F)
+```
+
+```{r Coxnet model of progression-free survival with germline genome PRS OTRS and PTRS,  warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
+```
+
+# Clustering and feature selection 
+```{r Spearman feature selection of OTRS and PTRS, warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
+#OS-PTRS all-feature setup
+OS_vector <- survivalwhite %>% select(submitter_id, phenotype, oss.months)
+OS_vector <- OS_vector %>% filter(oss.months>0)
+row.names(OS_vector) <- OS_vector$submitter_id
+OS_vector_rownames <- row.names(OS_vector)
+OS_vector$submitter_id <- NULL
+OS_vector <- as.data.frame(lapply(OS_vector, as.numeric))
+row.names(OS_vector) <- OS_vector_rownames
+OS_vector <- as.matrix(OS_vector)
+
+os_ptrs_spearman <- ospredictedexpressionreference
+os_ptrs_spearman = os_ptrs_spearman %>% filter(os_ptrs_spearman$IID %in% OS_vector_rownames)
+row.names(os_ptrs_spearman) <- os_ptrs_spearman$IID
+os_ptrs_spearman_rownames <- row.names(os_ptrs_spearman)
+os_ptrs_spearman$FID <- NULL
+os_ptrs_spearman$IID <- NULL
+os_ptrs_spearman <- as.data.frame(lapply(os_ptrs_spearman, as.numeric))
+row.names(os_ptrs_spearman) <- os_ptrs_spearman_rownames
+os_ptrs_spearman <- as.matrix(os_ptrs_spearman)
+
+os_ptrs_spearman_all <- cbind (os_ptrs_spearman, OS_vector)
+
+os_ptrs_spearman_all_clust <- as.data.frame(os_ptrs_spearman)
+os_ptrs_spearman_all_clust <- as.data.frame(t(os_ptrs_spearman_all_clust))
+
+os_ptrs_spearman_cor <- cor(os_ptrs_spearman_all[,1:6461], method = "spearman")
+mat <- as.matrix(os_ptrs_spearman_cor)
+mat <- mat[ , colSums(is.na(mat)) == 52]
+mat <- mat[rowSums(is.na(mat)) == 0, ] #print(mat)
+os_ptrs_spearman_cor_dist <-as.dist(1-mat)
+#hr <- hclust(os_ptrs_spearman_cor_dist, method="complete")
+groups<-cutree(hr, k=8)
+
+os_ptrs_genefeatures <- as.data.frame(rownames(mat))
+os_ptrs_genefeatures <- cbind(os_ptrs_genefeatures, groups)
+colnames(os_ptrs_genefeatures) <- c("geneID", "clust")
+```

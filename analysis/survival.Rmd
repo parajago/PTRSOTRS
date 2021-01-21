@@ -1,7 +1,7 @@
 ---
-title: "Evaluation of performance of PTRS/OTRS using survival as the weight"
+title: "Evaluation of performance of PTRS/OTRS using survival-GWAS to ascertain effect size (instead of risk)"
 author: "Padma Sheila Rajagopal, MD MPH"
-date: "1/13/2020"
+date: "1/20/2020"
 
 site: workflowr::wflow_site
 output:
@@ -32,8 +32,8 @@ options(stringsAsFactors = F)
 panderOptions('table.split.table', Inf)
 predixcan_cutoffs = c(5e-8, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1)
 
-load("Input/PTRSOTRS.RData")
 setwd("~/Research-Local/2020-ptrsotrs")
+load("Input/PTRSOTRS.RData")
 
 gen.score <- function(df, x, a, b) { 
   ## extract the objective column
@@ -79,21 +79,12 @@ calculate_trs = function(expression_df, effect_size_df, pvalue_cutoffs = c(5e-8,
 }
 ```
 
-
-
-
-
-
-
-
-# Survival
-## Survival-related variants: Predicted transcriptomic score (PTRS)
-This is the code to generate the predicted transcriptomic risk score (using survival GWAS as a weight) and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
-
+# PTRS-Overall survival in breast cancer (survival weights)
 ```{r Survival-weighted Predicted-TPRS score generation for overall survival, echo=FALSE, cache=TRUE,  warning=FALSE}
-ospredictedexpressionssurv <- ospredictedexpressionreference 
+setwd("~/Research-Local/2020-ptrsotrs")
+ospredictedexpressionssurv <- read.table("Input/predicted_expression/BRCA/os-results_predicted_expression.txt", header=TRUE, as.is = TRUE)
 
-PTPRSsurvweights <- read.table("Input/spredixcan-output/BCAC2019_survival_spredixcan_GTExV8_mashr.csv", header=TRUE, sep=",")
+PTPRSsurvweights <- read.table("Input/risk_weights/BCAC2019_survival_spredixcan_GTExV8_mashr.csv", header=TRUE, sep=",")
 PTPRSsurvweights <- PTPRSsurvweights %>% dplyr::select(gene, gene_name, effect_size, pvalue)
 
 ospredictedexpressionssurv <- as.data.frame(t(ospredictedexpressionssurv))
@@ -152,11 +143,13 @@ fit.coxphPTRSsurv <- coxph(surv_objectPTRSsurv ~ survivalwhitePTRSsurv$tprs,
 ggforest(fit.coxphPTRSsurv, data = survivalwhitePTRSsurv, main="Predicted transcriptomic score with survival GWAS\n overall survival, EUR ancestry")
 ```
 
-```{r Survival-weighted Predicted-TPRS score generation for progression-free survival, echo=FALSE, cache=TRUE, warning=FALSE}
-pfspredictedexpressionsurv <- pfspredictedexpressionreference
+In a univariate analysis, there is no significant association between PTRS (when using weights from a GWAS of overall survival in breast cancer) and overall survival in breast cancer. 
 
-PTPRSsurvweights <- read.table("Input/spredixcan-output/BCAC2019_survival_spredixcan_GTExV8_mashr.csv", header=TRUE, sep=",")
-PTPRSsurvweights <- PTPRSsurvweights %>% dplyr::select(gene, gene_name, effect_size, pvalue)
+# PTRS-Progression-free survival in breast cancer (survival weights)
+```{r Survival-weighted Predicted-TPRS score generation for progression-free survival, echo=FALSE, cache=TRUE, warning=FALSE}
+
+setwd("~/Research-Local/2020-ptrsotrs")
+pfspredictedexpressionsurv <- read.table("Input/predicted_expression/BRCA/pfs-results_predicted_expression.txt", header=TRUE, as.is = TRUE)
 
 pfspredictedexpressionsurv <- as.data.frame(t(pfspredictedexpressionsurv))
 names(pfspredictedexpressionsurv) <- pfspredictedexpressionsurv["IID",]
@@ -214,28 +207,53 @@ fit.coxphPTRSsurv <- coxph(surv_objectPTRSsurv ~ recurrencewhitePTRSsurv$tprs,
 ggforest(fit.coxphPTRSsurv, data = recurrencewhitePTRSsurv, main="Predicted transcriptomic score with survival GWAS\n progression-free survival, EUR ancestry")
 ```
 
-## Survival-related variants: Observed transcriptomic score (OTRS)
+In a univariate analysis, there is no significant association between PTRS (when using weights from a GWAS of overall survival in breast cancer) and progression-free survival in breast cancer. 
 
-This is the code to generate the observed transcriptomic risk score (using survival GWAS as a weight) and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
+# OTRS-Overall survival in breast cancer (survival weights)
+```{r Survival-weighted Observed-TPRS score generation, cache=TRUE, warning=FALSE, echo=FALSE}
+setwd("~/Research-Local/2020-ptrsotrs")
+osobservedexpression <- read.table("Input/observed_expression/BRCA-obexp/TCGA-BRCA_mRNA.csv", header=TRUE, sep=",")
 
-```{r Survival-weighted Observed-TPRS score generation, cache=TRUE, echo=FALSE, warning=FALSE}
-osobservedexpressionsurv_cleaned <- osobservedexpression_reference
+samplesEURmatch <- famOS$fullID
 
-OTPRSsurvweights <- read.table("Input/spredixcan-output/BCAC2019_survival_spredixcan_GTExV8_mashr.csv", header=TRUE, sep=",")
-OTPRSsurvweights <- OTPRSsurvweights %>% select(gene, gene_name, effect_size, pvalue)
+osobservedexpression$submitter_id_long <- substr(osobservedexpression$aliquot_barcode, 1, 16)
+osobservedexpression$submitter_id <- substr(osobservedexpression$aliquot_barcode, 1, 12)
+osobservedexpression_cleaned = osobservedexpression %>% dplyr::filter(osobservedexpression$submitter_id %in% samplesEURmatch)
+osobservedexpression_cleaned = osobservedexpression_cleaned %>% dplyr::filter(substr(osobservedexpression_cleaned$submitter_id_long, 14, 16)=="01A") #Isolates to primary tumor only, 682 samples remaining
 
-osobservedexpressionsurv_cleaned <- merge(osobservedexpressionsurv_cleaned, OTPRSsurvweights, by="gene_name", all.x=TRUE)
-osobservedexpressionsurv_cleaned <- osobservedexpressionsurv_cleaned %>% dplyr::filter(!is.na(effect_size))
-osobservedexpressionsurv_cleaned <- osobservedexpressionsurv_cleaned %>% dplyr::filter(duplicated(gene_name)==FALSE)
+osobservedexpression_cleaned$aliquot_barcode <- NULL
 
-osobservedexpressiongenessurv <- osobservedexpressionsurv_cleaned$gene
+osobservedexpressiongenes <- colnames(osobservedexpression_cleaned)
+rownames(osobservedexpression_cleaned) <- osobservedexpression_cleaned$submitter_id
+osobservedexpressionnames <- rownames(osobservedexpression_cleaned)
+osobservedexpressiongenes <- osobservedexpressiongenes[1:17321]
 
-osobservedexpressionsurv_cleaned_t <- osobservedexpressionsurv_cleaned %>%
+osobservedexpression_cleaned <- as.data.frame(t(osobservedexpression_cleaned))
+osobservedexpression_cleaned <- osobservedexpression_cleaned[1:17321,] #removes text rows and only expression data observed
+osobservedexpression_cleaned <- as.data.frame(lapply(osobservedexpression_cleaned, as.numeric))
+osobservedexpressiongenes <- osobservedexpressiongenes[1:17321]
+rownames(osobservedexpression_cleaned) <- osobservedexpressiongenes
+
+OTPRSsurvweights <- read.table("Input/risk_weights/BCAC2019_survival_spredixcan_GTExV8_mashr.csv", header=TRUE, sep=",")
+OTPRSsurvweights <- OTPRSsurvweights %>% dplyr::select(gene, gene_name, effect_size, pvalue)
+
+osobservedexpression_cleaned$gene_name <- row.names(osobservedexpression_cleaned)
+osobservedexpression_reference <- osobservedexpression_cleaned 
+
+osobservedexpression_cleaned <- merge(osobservedexpression_cleaned, OTPRSsurvweights, by="gene_name", all.x=TRUE)
+osobservedexpression_cleaned <- osobservedexpression_cleaned %>% dplyr::filter(!is.na(effect_size))
+osobservedexpression_cleaned <- osobservedexpression_cleaned %>% dplyr::filter(duplicated(gene_name)==FALSE)
+
+osobservedexpressiongenes <- osobservedexpression_cleaned$gene
+osobservedexpressionrows <- osobservedexpression_cleaned$gene_name
+
+osobservedexpression_cleaned_t <- osobservedexpression_cleaned %>%
   mutate_at(vars(-gene_name, -gene, -effect_size, -pvalue), function(x) {log(x+1)})
 
-OTRSsurvscore <- gen.score(osobservedexpressionsurv_cleaned_t, 685, 2, 683)
+OTRSsurvscore <- gen.score(osobservedexpression_cleaned_t, 685, 2, 683)
+
 OTRSsurvscoredev <- OTRSsurvscore
-rownames(OTRSsurvscoredev) <- osobservedexpressiongenessurv
+rownames(OTRSsurvscoredev) <- osobservedexpressiongenes
 
 OTRSsurvoptimization <- calculate_trs(OTRSsurvscoredev, OTPRSsurvweights)
 
@@ -255,7 +273,7 @@ for(i in names(perf_o)) {
     ggsave(paste0('~/Desktop/', 'otrs_cutoff_', i, '.pdf'), p, height = 10, width = 6)
   }
 
-OTRSsurvscorefinal <- OTRSsurvoptimization$ptrs %>% filter(cutoff==1e-2)
+OTRSsurvscorefinal <- OTRSsurvoptimization$ptrs %>% filter(cutoff==1e-3)
 OTRSsurvscorefinal$indiv = stringr::str_replace_all(OTRSsurvscorefinal$indiv, '\\.', '-')
 OTRSsurvscorefinal <- merge(OTRSsurvscorefinal, famOS, by.x="indiv", by.y="fullID")
 OTRSsurvscorefinal <- OTRSsurvscorefinal %>% select (indiv, tprs, cutoff, phenotype)
@@ -273,7 +291,10 @@ fit.coxphOTRSsurv <- coxph(surv_objectOTRSsurv ~ survivalwhiteOTRSsurv$tprs,
 ggforest(fit.coxphOTRSsurv, data = survivalwhiteOTRSsurv, main="Observed transcriptomic score with survival GWAS\n overall survival, EUR ancestry")
 ```
 
-```{r Survival-weighted Observed-TPRS score generation for progression free survival, echo=FALSE, cache=TRUE, warning=FALSE}
+In a univariate analysis, there is no significant association between OTRS (when using weights from a GWAS of overall survival in breast cancer) and overall survival in breast cancer. 
+
+# OTRS-Progression-free survival in breast cancer (survival weights)
+```{r Observed-TPRS score generation for progression free survival, cache=TRUE, echo=FALSE, warning=FALSE}
 pheno <- famPFS %>% select(fullID,phenotype)
 names(pheno) = c("SUBJID", "phenotype") 
 
@@ -292,7 +313,7 @@ for(i in names(perf_o)) {
 
 OTRSsurvscorefinal <- OTRSsurvoptimization$ptrs %>% filter(cutoff==1e-3)
 OTRSsurvscorefinal$indiv = stringr::str_replace_all(OTRSsurvscorefinal$indiv, '\\.', '-')
-OTRSsurvscorefinal <- merge(OTRSsurvscorefinal, famPFS, by.x="indiv", by.y="fullID")
+OTRSsurvscorefinal <- merge(OTRSsurvscorefinal, famOS, by.x="indiv", by.y="fullID")
 OTRSsurvscorefinal <- OTRSsurvscorefinal %>% select (indiv, tprs, cutoff, phenotype)
 ```
 
@@ -308,807 +329,4 @@ fit.coxphOTRSsurv <- coxph(surv_objectOTRSsurv ~ recurrencewhiteOTRSsurv$tprs,
 ggforest(fit.coxphOTRSsurv, data = recurrencewhiteOTRSsurv, main="Observed transcriptomic score with survival GWAS\n progression-free survival, EUR ancestry")
 ```
 
-When survival is used as the weighting factor, there is no longer any association between any score and survival outcomes.
-
-This is the code to generate the predicted transcriptomic risk score (using subtype-specific GWAS results and calculated for patients within that subtype) and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
-
-# Subtype-specific variants
-## LumA/ Predicted (PTRS)
-```{r LumA-specific Predicted-TPRS score generation for overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
-ospredictedexpressionLumA <- ospredictedexpressionreference 
-LumA <- subtype_formatted %>% filter(pam50=="Luminal A")
-LumA <- LumA$submitter_id
-HRpos <- subtype_formatted %>% filter(subtypefinal=="HR+", is.na(pam50)==TRUE)
-HRpos <- HRpos$submitter_id
-
-PTPRSLumAweights <- read.table("Input/spredixcan-output/BCAC2020_LumA_spredixcan_GTExV8_mashr.csv", header=TRUE, sep=",")
-PTPRSLumAweights <- PTPRSLumAweights %>% dplyr::select(gene, gene_name, effect_size, pvalue)
-
-ospredictedexpressionLumA <- ospredictedexpressionLumA %>% filter((IID %in% LumA)==TRUE)
-ospredictedexpressionLumA <- as.data.frame(t(ospredictedexpressionLumA))
-names(ospredictedexpressionLumA) <- ospredictedexpressionLumA["IID",]
-ospredictedexpressionLumA <- ospredictedexpressionLumA[-1,] #Removing the FID row
-ospredictedexpressionLumA <- ospredictedexpressionLumA[-1,] #Removing the IID row 
-ospredictedexpressionLumAgene <- rownames(ospredictedexpressionLumA)
-ospredictedexpressionLumA <- as.data.frame(lapply(ospredictedexpressionLumA, as.numeric))
-rownames(ospredictedexpressionLumA) <- ospredictedexpressionLumAgene
-ospredictedexpressionLumA$gene <- row.names(ospredictedexpressionLumA)
-
-ospredictedexpressionLumA <- merge(ospredictedexpressionLumA, PTPRSLumAweights, by="gene", all.x=TRUE)
-PTRSLumAscoreraw <- gen.score(ospredictedexpressionLumA, 185, 2, 183)
-PTRSLumAscoredev <- PTRSLumAscoreraw
-rownames(PTRSLumAscoredev) <- ospredictedexpressionLumAgene
-
-PTRSLumAoptimization <- calculate_trs(PTRSLumAscoredev, PTPRSLumAweights)
-
-pheno <- famOS %>% select(fullID,phenotype)
-names(pheno) = c("SUBJID", "phenotype") 
-
-perf_t = list()
-ptrs <- PTRSLumAoptimization$ptrs
-ptrs$indiv = stringr::str_replace_all(ptrs$indiv, '\\.', '-')
-for(c in predixcan_cutoffs) {
-  perf_t[[as.character(c)]] = inner_join(pheno, ptrs %>% dplyr::filter(cutoff == c), by = c('SUBJID' = 'indiv'))
-}
-
-for(i in names(perf_t)) {
-    p = perf_t[[i]] %>% ggplot() + geom_density(aes(x = tprs, fill = factor(phenotype)), alpha = .5) + theme(legend.position = 'bottom')
-    p = p + ggtitle(paste0('p-value cutoff: ', i))
-    ggsave(paste0('~/Desktop/', 'ptrs_cutoff_', i, '.pdf'), p, height = 10, width = 6)
-  }
-
-PTRSLumAscorefinal <- PTRSLumAoptimization$ptrs %>% dplyr::filter(cutoff==1e-4)
-PTRSLumAscorefinal$indiv = stringr::str_replace_all(PTRSLumAscorefinal$indiv, '\\.', '-')
-PTRSLumAscorefinal <- merge(PTRSLumAscorefinal, famOS, by.x="indiv", by.y="fullID")
-PTRSLumAscorefinal <- PTRSLumAscorefinal %>% select (indiv, tprs, cutoff, phenotype)
-```
-
-```{r LumA-specific Cox regression of Predicted TRS and overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
-survivalwhitePTRSLumA <- merge(PTRSLumAscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
-survivalwhitePTRSLumA$phenotype <- ifelse(survivalwhitePTRSLumA$phenotype=="2", "case", survivalwhitePTRSLumA$phenotype)
-survivalwhitePTRSLumA$phenotype <- ifelse(survivalwhitePTRSLumA$phenotype=="1", 0, survivalwhitePTRSLumA$phenotype)
-survivalwhitePTRSLumA$phenotype <- ifelse(survivalwhitePTRSLumA$phenotype=="case", 1, survivalwhitePTRSLumA$phenotype)
-
-#Cox regression of overall survival
-surv_objectPTRSLumA <- Surv(time=survivalwhitePTRSLumA$oss.months, event=as.numeric(survivalwhitePTRSLumA$phenotype))
-
-fit.coxphPTRSLumA <- coxph(surv_objectPTRSLumA ~ survivalwhitePTRSLumA$tprs,
-                   data = survivalwhitePTRSLumA)
-
-ggforest(fit.coxphPTRSLumA, data = survivalwhitePTRSLumA, main="Predicted transcriptomic score with Luminal A GWAS + subtype in TCGA\n overall survival, EUR ancestry")
-```
-
-## LumB/ Predicted (PTRS)
-```{r LumB-specific Predicted-TPRS score generation for overall survival, echo=FALSE, cache=TRUE,  warning=FALSE}
-ospredictedexpressionLumB <- ospredictedexpressionreference 
-LumB <- subtype_formatted %>% filter(pam50=="Luminal B")
-LumB <- LumB$submitter_id
-HRpos <- subtype_formatted %>% filter(subtypefinal=="HR+", is.na(pam50)==TRUE)
-HRpos <- HRpos$submitter_id
-
-PTPRSLumBweights <- read.table("Input/spredixcan-output/BCAC2020_LumB_spredixcan_GTExV8_mashr.csv", header=TRUE, sep=",")
-PTPRSLumBweights <- PTPRSLumBweights %>% dplyr::select(gene, gene_name, effect_size, pvalue)
-
-ospredictedexpressionLumB <- ospredictedexpressionLumB %>% filter((IID %in% LumB)==TRUE)
-ospredictedexpressionLumB <- as.data.frame(t(ospredictedexpressionLumB))
-names(ospredictedexpressionLumB) <- ospredictedexpressionLumB["IID",]
-ospredictedexpressionLumB <- ospredictedexpressionLumB[-1,] #Removing the FID row
-ospredictedexpressionLumB <- ospredictedexpressionLumB[-1,] #Removing the IID row 
-ospredictedexpressionLumBgene <- rownames(ospredictedexpressionLumB)
-ospredictedexpressionLumB <- as.data.frame(lapply(ospredictedexpressionLumB, as.numeric))
-rownames(ospredictedexpressionLumB) <- ospredictedexpressionLumBgene
-ospredictedexpressionLumB$gene <- row.names(ospredictedexpressionLumB)
-
-ospredictedexpressionLumB <- merge(ospredictedexpressionLumB, PTPRSLumBweights, by="gene", all.x=TRUE)
-PTRSLumBscoreraw <- gen.score(ospredictedexpressionLumB, 87, 2, 85)
-PTRSLumBscoredev <- PTRSLumBscoreraw
-rownames(PTRSLumBscoredev) <- ospredictedexpressionLumBgene
-
-PTRSLumBoptimization <- calculate_trs(PTRSLumBscoredev, PTPRSLumBweights)
-
-pheno <- famOS %>% select(fullID,phenotype)
-names(pheno) = c("SUBJID", "phenotype") 
-
-perf_t = list()
-ptrs <- PTRSLumBoptimization$ptrs
-ptrs$indiv = stringr::str_replace_all(ptrs$indiv, '\\.', '-')
-for(c in predixcan_cutoffs) {
-  perf_t[[as.character(c)]] = inner_join(pheno, ptrs %>% dplyr::filter(cutoff == c), by = c('SUBJID' = 'indiv'))
-}
-
-for(i in names(perf_t)) {
-    p = perf_t[[i]] %>% ggplot() + geom_density(aes(x = tprs, fill = factor(phenotype)), alpha = .5) + theme(legend.position = 'bottom')
-    p = p + ggtitle(paste0('p-value cutoff: ', i))
-    ggsave(paste0('~/Desktop/', 'ptrs_cutoff_', i, '.pdf'), p, height = 10, width = 6)
-  }
-
-PTRSLumBscorefinal <- PTRSLumBoptimization$ptrs %>% dplyr::filter(cutoff==1e-4)
-PTRSLumBscorefinal$indiv = stringr::str_replace_all(PTRSLumBscorefinal$indiv, '\\.', '-')
-PTRSLumBscorefinal <- merge(PTRSLumBscorefinal, famOS, by.x="indiv", by.y="fullID")
-PTRSLumBscorefinal <- PTRSLumBscorefinal %>% select (indiv, tprs, cutoff, phenotype)
-```
-
-```{r LumB-specific Cox regression of Predicted TRS and overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
-survivalwhitePTRSLumB <- merge(PTRSLumBscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
-survivalwhitePTRSLumB$phenotype <- ifelse(survivalwhitePTRSLumB$phenotype=="2", "case", survivalwhitePTRSLumB$phenotype)
-survivalwhitePTRSLumB$phenotype <- ifelse(survivalwhitePTRSLumB$phenotype=="1", 0, survivalwhitePTRSLumB$phenotype)
-survivalwhitePTRSLumB$phenotype <- ifelse(survivalwhitePTRSLumB$phenotype=="case", 1, survivalwhitePTRSLumB$phenotype)
-
-#Cox regression of overall survival
-surv_objectPTRSLumB <- Surv(time=survivalwhitePTRSLumB$oss.months, event=as.numeric(survivalwhitePTRSLumB$phenotype))
-
-fit.coxphPTRSLumB <- coxph(surv_objectPTRSLumB ~ survivalwhitePTRSLumB$tprs,
-                   data = survivalwhitePTRSLumB)
-
-ggforest(fit.coxphPTRSLumB, data = survivalwhitePTRSLumB, main="Predicted transcriptomic score with Luminal B GWAS + subtype in TCGA\n overall survival, EUR ancestry")
-```
-
-## TNBC/ Predicted (PTRS)
-```{r TNBC-specific Predicted-TPRS score generation for overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
-ospredictedexpressionTNBC <- ospredictedexpressionreference 
-TNBC <- subtype_formatted %>% filter(pam50=="Basal-like")
-TNBC <- TNBC$submitter_id
-
-PTPRSTNBCweights <- read.table("Input/spredixcan-output/BCAC2020_TNBC_spredixcan_GTExV8_mashr.csv", header=TRUE, sep=",")
-PTPRSTNBCweights <- PTPRSTNBCweights %>% dplyr::select(gene, gene_name, effect_size, pvalue)
-
-ospredictedexpressionTNBC <- ospredictedexpressionTNBC %>% filter((IID %in% TNBC)==TRUE)
-ospredictedexpressionTNBC <- as.data.frame(t(ospredictedexpressionTNBC))
-names(ospredictedexpressionTNBC) <- ospredictedexpressionTNBC["IID",]
-ospredictedexpressionTNBC <- ospredictedexpressionTNBC[-1,] #Removing the FID row
-ospredictedexpressionTNBC <- ospredictedexpressionTNBC[-1,] #Removing the IID row 
-ospredictedexpressionTNBCgene <- rownames(ospredictedexpressionTNBC)
-ospredictedexpressionTNBC <- as.data.frame(lapply(ospredictedexpressionTNBC, as.numeric))
-rownames(ospredictedexpressionTNBC) <- ospredictedexpressionTNBCgene
-ospredictedexpressionTNBC$gene <- row.names(ospredictedexpressionTNBC)
-
-ospredictedexpressionTNBC <- merge(ospredictedexpressionTNBC, PTPRSTNBCweights, by="gene", all.x=TRUE)
-PTRSTNBCscoreraw <- gen.score(ospredictedexpressionTNBC, 76, 2, 74)
-PTRSTNBCscoredev <- PTRSTNBCscoreraw
-rownames(PTRSTNBCscoredev) <- ospredictedexpressionTNBCgene
-
-PTRSTNBCoptimization <- calculate_trs(PTRSTNBCscoredev, PTPRSTNBCweights)
-
-pheno <- famOS %>% select(fullID,phenotype)
-names(pheno) = c("SUBJID", "phenotype") 
-
-perf_t = list()
-ptrs <- PTRSTNBCoptimization$ptrs
-ptrs$indiv = stringr::str_replace_all(ptrs$indiv, '\\.', '-')
-for(c in predixcan_cutoffs) {
-  perf_t[[as.character(c)]] = inner_join(pheno, ptrs %>% dplyr::filter(cutoff == c), by = c('SUBJID' = 'indiv'))
-}
-
-for(i in names(perf_t)) {
-    p = perf_t[[i]] %>% ggplot() + geom_density(aes(x = tprs, fill = factor(phenotype)), alpha = .5) + theme(legend.position = 'bottom')
-    p = p + ggtitle(paste0('p-value cutoff: ', i))
-    ggsave(paste0('~/Desktop/', 'ptrs_cutoff_', i, '.pdf'), p, height = 10, width = 6)
-  }
-
-PTRSTNBCscorefinal <- PTRSTNBCoptimization$ptrs %>% dplyr::filter(cutoff==1e-4)
-PTRSTNBCscorefinal$indiv = stringr::str_replace_all(PTRSTNBCscorefinal$indiv, '\\.', '-')
-PTRSTNBCscorefinal <- merge(PTRSTNBCscorefinal, famOS, by.x="indiv", by.y="fullID")
-PTRSTNBCscorefinal <- PTRSTNBCscorefinal %>% select (indiv, tprs, cutoff, phenotype)
-```
-
-```{r TNBC-specific Cox regression of Predicted TRS and overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
-survivalwhitePTRSTNBC <- merge(PTRSTNBCscorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
-survivalwhitePTRSTNBC$phenotype <- ifelse(survivalwhitePTRSTNBC$phenotype=="2", "case", survivalwhitePTRSTNBC$phenotype)
-survivalwhitePTRSTNBC$phenotype <- ifelse(survivalwhitePTRSTNBC$phenotype=="1", 0, survivalwhitePTRSTNBC$phenotype)
-survivalwhitePTRSTNBC$phenotype <- ifelse(survivalwhitePTRSTNBC$phenotype=="case", 1, survivalwhitePTRSTNBC$phenotype)
-
-#Cox regression of overall survival
-surv_objectPTRSTNBC <- Surv(time=survivalwhitePTRSTNBC$oss.months, event=as.numeric(survivalwhitePTRSTNBC$phenotype))
-
-fit.coxphPTRSTNBC <- coxph(surv_objectPTRSTNBC ~ survivalwhitePTRSTNBC$tprs,
-                   data = survivalwhitePTRSTNBC)
-
-ggforest(fit.coxphPTRSTNBC, data = survivalwhitePTRSTNBC, main="Predicted transcriptomic score with TNBC GWAS + subtype in TCGA\n overall survival, EUR ancestry")
-```
-
-## HER2/ Predicted (PTRS)
-```{r HER2-specific Predicted-TPRS score generation for overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
-ospredictedexpressionHER2 <- ospredictedexpressionreference 
-HER2 <- subtype_formatted %>% filter(pam50=="HER2-enriched")
-HER2 <- HER2$submitter_id
-
-PTPRSHER2weights <- read.table("Input/spredixcan-output/BCAC2020_HER2_spredixcan_GTExV8_mashr.csv", header=TRUE, sep=",")
-PTPRSHER2weights <- PTPRSHER2weights %>% dplyr::select(gene, gene_name, effect_size, pvalue)
-
-ospredictedexpressionHER2 <- ospredictedexpressionHER2 %>% filter((IID %in% HER2)==TRUE)
-ospredictedexpressionHER2 <- as.data.frame(t(ospredictedexpressionHER2))
-names(ospredictedexpressionHER2) <- ospredictedexpressionHER2["IID",]
-ospredictedexpressionHER2 <- ospredictedexpressionHER2[-1,] #Removing the FID row
-ospredictedexpressionHER2 <- ospredictedexpressionHER2[-1,] #Removing the IID row 
-ospredictedexpressionHER2gene <- rownames(ospredictedexpressionHER2)
-ospredictedexpressionHER2 <- as.data.frame(lapply(ospredictedexpressionHER2, as.numeric))
-rownames(ospredictedexpressionHER2) <- ospredictedexpressionHER2gene
-ospredictedexpressionHER2$gene <- row.names(ospredictedexpressionHER2)
-
-ospredictedexpressionHER2 <- merge(ospredictedexpressionHER2, PTPRSHER2weights, by="gene", all.x=TRUE)
-PTRSHER2scoreraw <- gen.score(ospredictedexpressionHER2, 40, 2, 38)
-PTRSHER2scoredev <- PTRSHER2scoreraw
-rownames(PTRSHER2scoredev) <- ospredictedexpressionHER2gene
-
-PTRSHER2optimization <- calculate_trs(PTRSHER2scoredev, PTPRSHER2weights)
-
-pheno <- famOS %>% select(fullID,phenotype)
-names(pheno) = c("SUBJID", "phenotype") 
-
-perf_t = list()
-ptrs <- PTRSHER2optimization$ptrs
-ptrs$indiv = stringr::str_replace_all(ptrs$indiv, '\\.', '-')
-for(c in predixcan_cutoffs) {
-  perf_t[[as.character(c)]] = inner_join(pheno, ptrs %>% dplyr::filter(cutoff == c), by = c('SUBJID' = 'indiv'))
-}
-
-for(i in names(perf_t)) {
-    p = perf_t[[i]] %>% ggplot() + geom_density(aes(x = tprs, fill = factor(phenotype)), alpha = .5) + theme(legend.position = 'bottom')
-    p = p + ggtitle(paste0('p-value cutoff: ', i))
-    ggsave(paste0('~/Desktop/', 'ptrs_cutoff_', i, '.pdf'), p, height = 10, width = 6)
-  }
-
-PTRSHER2scorefinal <- PTRSHER2optimization$ptrs %>% dplyr::filter(cutoff==1e-4)
-PTRSHER2scorefinal$indiv = stringr::str_replace_all(PTRSHER2scorefinal$indiv, '\\.', '-')
-PTRSHER2scorefinal <- merge(PTRSHER2scorefinal, famOS, by.x="indiv", by.y="fullID")
-PTRSHER2scorefinal <- PTRSHER2scorefinal %>% select (indiv, tprs, cutoff, phenotype)
-```
-
-```{r HER2-specific Cox regression of Predicted TRS and overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
-survivalwhitePTRSHER2 <- merge(PTRSHER2scorefinal, TCGAavail, by.x="indiv", by.y="submitter_id")
-survivalwhitePTRSHER2$phenotype <- ifelse(survivalwhitePTRSHER2$phenotype=="2", "case", survivalwhitePTRSHER2$phenotype)
-survivalwhitePTRSHER2$phenotype <- ifelse(survivalwhitePTRSHER2$phenotype=="1", 0, survivalwhitePTRSHER2$phenotype)
-survivalwhitePTRSHER2$phenotype <- ifelse(survivalwhitePTRSHER2$phenotype=="case", 1, survivalwhitePTRSHER2$phenotype)
-
-#Cox regression of overall survival
-surv_objectPTRSHER2 <- Surv(time=survivalwhitePTRSHER2$oss.months, event=as.numeric(survivalwhitePTRSHER2$phenotype))
-
-fit.coxphPTRSHER2 <- coxph(surv_objectPTRSHER2 ~ survivalwhitePTRSHER2$tprs,
-                   data = survivalwhitePTRSHER2)
-
-ggforest(fit.coxphPTRSHER2, data = survivalwhitePTRSHER2, main="Predicted transcriptomic score with HER2+ GWAS + subtype in TCGA\n overall survival, EUR ancestry")
-```
-
-## Combined subtype-specific contribution (PTRS)
-```{r Subtype-specific Cox regression of Predicted TRS and overall survival, echo=FALSE, cache=TRUE, warning=FALSE}
-survivalwhitesubtype <- survivalwhitePTRS
-temp1 <- PTRSLumAscorefinal %>% select(indiv, tprs)
-survivalwhitesubtype <- merge(survivalwhitesubtype, temp1, by.x="indiv", by.y="indiv", all.x=TRUE)
-names(survivalwhitesubtype)[names(survivalwhitesubtype) == "tprs.y"] <- "tprs.luma"
-
-temp2 <- PTRSLumBscorefinal %>% select(indiv, tprs)
-survivalwhitesubtype <- merge(survivalwhitesubtype, temp2, by.x="indiv", by.y="indiv", all.x=TRUE)
-names(survivalwhitesubtype)[names(survivalwhitesubtype) == "tprs"] <- "tprs.lumb"
-
-temp3 <- PTRSTNBCscorefinal %>% select(indiv, tprs)
-survivalwhitesubtype <- merge(survivalwhitesubtype, temp3, by.x="indiv", by.y="indiv", all.x=TRUE)
-names(survivalwhitesubtype)[names(survivalwhitesubtype) == "tprs"] <- "tprs.basal"
-
-temp4 <- PTRSHER2scorefinal %>% select(indiv, tprs)
-survivalwhitesubtype <- merge(survivalwhitesubtype, temp4, by.x="indiv", by.y="indiv", all.x=TRUE)
-names(survivalwhitesubtype)[names(survivalwhitesubtype) == "tprs"] <- "tprs.her2"
-
-survivalwhitesubtype$lumayn <- ifelse (survivalwhitesubtype$pam50=="Luminal A", 1, 0)
-survivalwhitesubtype$lumbyn <- ifelse (survivalwhitesubtype$pam50=="Luminal B", 1, 0)
-survivalwhitesubtype$basalyn <- ifelse (survivalwhitesubtype$pam50=="Basal-like", 1, 0) 
-survivalwhitesubtype$her2yn <- ifelse (survivalwhitesubtype$pam50=="HER2-enriched", 1, 0) 
-survivalwhitesubtype$intluma <- survivalwhitesubtype$tprs.x*survivalwhitesubtype$lumayn
-survivalwhitesubtype$intlumb <- survivalwhitesubtype$tprs.x*survivalwhitesubtype$lumbyn
-survivalwhitesubtype$intbasal <- survivalwhitesubtype$tprs.x*survivalwhitesubtype$basalyn
-survivalwhitesubtype$inther2 <- survivalwhitesubtype$tprs.x*survivalwhitesubtype$her2yn
-
-#Cox regression of overall survival by subtype
-surv_objectPTRSbysubtype <- Surv(time=survivalwhitesubtype$oss.months, event=as.numeric(survivalwhitesubtype$phenotype))
-fit.coxphPTRSbysubtype <- coxph(surv_objectPTRSbysubtype ~
-  survivalwhitesubtype$tprs.x+
-  survivalwhitesubtype$lumayn+
-  survivalwhitesubtype$lumbyn+
-  survivalwhitesubtype$basalyn+
-  survivalwhitesubtype$her2yn+
-  survivalwhitesubtype$intluma+
-  survivalwhitesubtype$intlumb+
-  survivalwhitesubtype$intbasal+
-  survivalwhitesubtype$inther2,
-                   data = survivalwhitesubtype)
-ggforest(fit.coxphPTRSbysubtype, data = survivalwhitesubtype, main="Predicted transcriptomic score from all patients\n subtype as covariate/interaction, overall survival, EUR ancestry")
-```
-
-No specific subtype (which are drived from existing RNA subtype methods) drove the score performance (although luminal B had the strongest effect). RNA-based subtype resulted in decreased efficacy of score performance. 
-
-# Combined scores + clinical data
-
-## Clinical: Overall survival
-```{r Cox regression of combined methods and overall survival, cache=TRUE, echo=FALSE, warning=FALSE}
-mergePTRS <- survivalwhitePTRS %>% dplyr::select (indiv, tprs)
-colnames(mergePTRS) <- c("indiv", "PTRS")
-
-mergeOTRS <- survivalwhiteOTRS %>% dplyr::select (indiv, tprs)
-colnames(mergeOTRS) <- c("indiv", "OTRS")
-                                                    
-survivalwhiteall <- merge(survivalwhite, mergePTRS, by.x="submitter_id", by.y="indiv", all.y=TRUE)
-survivalwhiteall <- merge(survivalwhiteall, mergeOTRS, by.x="submitter_id", by.y="indiv", all.y=TRUE)
-
-survivalwhiteall$AJCCN <- ifelse (survivalwhiteall$AJCCN=="N0" | survivalwhiteall$AJCCN=="N0 (I-)" | survivalwhiteall$AJCCN=="N0 (I+)", 0, survivalwhiteall$AJCCN)
-survivalwhiteall$AJCCN <- ifelse (survivalwhiteall$AJCCN=="N1" | survivalwhiteall$AJCCN=="N1A" | survivalwhiteall$AJCCN=="N1B" | survivalwhiteall$AJCCN=="N1MI" , 1, survivalwhiteall$AJCCN)
-survivalwhiteall$AJCCN <- ifelse (survivalwhiteall$AJCCN=="N2" | survivalwhiteall$AJCCN=="N2A", 2, survivalwhiteall$AJCCN)
-survivalwhiteall$AJCCN <- ifelse (survivalwhiteall$AJCCN=="N3" | survivalwhiteall$AJCCN=="N3A" | survivalwhiteall$AJCCN=="N3B", 3, survivalwhiteall$AJCCN)
-survivalwhiteall$AJCCN <- ifelse (survivalwhiteall$AJCCN=="NX", NA, survivalwhiteall$AJCCN)
-
-survivalwhiteall$AJCCT <- ifelse (survivalwhiteall$AJCCT=="T1" | survivalwhiteall$AJCCT=="T1B" | survivalwhiteall$AJCCT=="T1C", 1, survivalwhiteall$AJCCT)
-survivalwhiteall$AJCCT <- ifelse (survivalwhiteall$AJCCT=="T2" | survivalwhiteall$AJCCT=="T2A", 2, survivalwhiteall$AJCCT)
-survivalwhiteall$AJCCT <- ifelse (survivalwhiteall$AJCCT=="T3" | survivalwhiteall$AJCCT=="T3A", 3, survivalwhiteall$AJCCT)
-survivalwhiteall$AJCCT <- ifelse (survivalwhiteall$AJCCT=="T4" | survivalwhiteall$AJCCT=="T4B" | survivalwhiteall$AJCCT=="T4D", 4, survivalwhiteall$AJCCT)
-survivalwhiteall$AJCCT <- ifelse (survivalwhiteall$AJCCT=="TX", NA, survivalwhiteall$AJCCT)
-
-survivalwhiteall$AJCCM <- ifelse (survivalwhiteall$AJCCM=="CM0 (I+)" | survivalwhiteall$AJCCM=="M0", 0, survivalwhiteall$AJCCM)
-survivalwhiteall$AJCCM <- ifelse (survivalwhiteall$AJCCM=="M1", 1, survivalwhiteall$AJCCM)
-survivalwhiteall$AJCCM <- ifelse (survivalwhiteall$AJCCM=="MX", NA, survivalwhiteall$AJCCM)
-
-survivalwhiteall$er <- ifelse (survivalwhiteall$er=="Negative", 0, survivalwhiteall$er)
-survivalwhiteall$er <- ifelse (survivalwhiteall$er=="Positive", 1, survivalwhiteall$er)
-
-survivalwhiteall$pr <- ifelse (survivalwhiteall$pr=="Negative", 0, survivalwhiteall$pr)
-survivalwhiteall$pr <- ifelse (survivalwhiteall$pr=="Positive", 1, survivalwhiteall$pr)
-
-survivalwhiteall$hr <- NA
-survivalwhiteall$hr <- ifelse (survivalwhiteall$er=="0" & survivalwhiteall$pr=="0", 0, survivalwhiteall$hr)
-survivalwhiteall$hr <- ifelse (survivalwhiteall$er=="1" | survivalwhiteall$pr=="1", 1, survivalwhiteall$hr)
-
-survivalwhiteall$her2 <- ifelse (survivalwhiteall$her2=="Negative", 0, survivalwhiteall$her2)
-survivalwhiteall$her2 <- ifelse (survivalwhiteall$her2=="Positive", 1, survivalwhiteall$her2)
-
-#Cox regression of survival
-covariates <- c("age", "AJCCN",  "AJCCT", "AJCCM", "hr", "her2", "score", "PTRS", "OTRS")
-
-class(survivalwhiteall$oss.months) = 'numeric'
-class(survivalwhiteall$phenotype) = 'numeric'
-class(survivalwhiteall$age) = 'numeric'
-class(survivalwhiteall$AJCCN) = 'numeric'
-class(survivalwhiteall$AJCCT) = 'numeric'
-class(survivalwhiteall$AJCCM) = 'numeric'
-class(survivalwhiteall$hr) <- 'numeric'
-class(survivalwhiteall$her2) <- 'numeric'
-class(survivalwhiteall$score) = 'numeric'
-class(survivalwhiteall$PTRS) = 'numeric'
-class(survivalwhiteall$OTRS) = 'numeric'
-
-univ_formulas <- sapply(covariates,
-                        function(x) as.formula(paste('Surv(survivalwhiteall$oss.months, survivalwhiteall$phenotype)~', x)))
-
-univ_models <- lapply( univ_formulas, function(x){coxph(x, data = survivalwhiteall)})
-
-# Extract data 
-univ_results <- lapply(univ_models,
-                       function(x){ 
-                          x <- summary(x)
-                          p.value<-signif(x$wald["pvalue"], digits=2)
-                          wald.test<-signif(x$wald["test"], digits=2)
-                          beta<-signif(x$coef[1], digits=2);#coeficient beta
-                          HR <-signif(x$coef[2], digits=2);#exp(beta)
-                          HR.confint.lower <- signif(x$conf.int[,"lower .95"], 2)
-                          HR.confint.upper <- signif(x$conf.int[,"upper .95"],2)
-                          HR <- paste0(HR, " (", 
-                                       HR.confint.lower, "-", HR.confint.upper, ")")
-                          res<-c(beta, HR, wald.test, p.value)
-                          names(res)<-c("beta", "HR (95% CI for HR)", "wald.test", 
-                                        "p.value")
-                          return(res)
-                          #return(exp(cbind(coef(x),confint(x))))
-                         })
-res <- t(as.data.frame(univ_results, check.names = FALSE))
-as.data.frame(res)
-
-OS_European <- survivalwhiteall %>% select(oss.months, phenotype, age, AJCCN, AJCCT, AJCCM, hr, her2, PTRS)
-colnames(OS_European) = c("oss.months", "phenotype", "Age", "AJCCN.Nodal_Status", "AJCC.Tumor_Size", "AJCC.Metastasis", "Hormone.Receptor.Pos", "HER2.Receptor.Pos", "Predicted_Transcriptomic_Score")
-
-surv_objectall <- Surv(time=OS_European$oss.months, event=as.numeric(OS_European$phenotype))
-
-fit.coxphall <- coxph(surv_objectall ~ OS_European$Age+OS_European$AJCCN.Nodal_Status+OS_European$AJCC.Tumor_Size+OS_European$AJCC.Metastasis+OS_European$Hormone.Receptor.Pos+OS_European$HER2.Receptor.Pos+OS_European$Predicted_Transcriptomic_Score, data=OS_European) 
-ggforest(fit.coxphall, data = OS_European, main="Hazard ratios of all data in TCGA patients\n overall survival, EUR ancestry")
-```
-
-## Clinical: Progression-free survival
-```{r Cox regression of combined methods and progression-free survival, echo=FALSE, cache=TRUE, warning=FALSE}
-mergePTRS <- recurrencewhitePTRS %>% dplyr::select (indiv, tprs)
-colnames(mergePTRS) <- c("indiv", "PTRS")
-
-mergeOTRS <- recurrencewhiteOTRS %>% dplyr::select (indiv, tprs)
-colnames(mergeOTRS) <- c("indiv", "OTRS")
-                                                    
-recurrencewhiteall <- merge(recurrencewhite, mergePTRS, by.x="submitter_id", by.y="indiv", all.y=TRUE)
-recurrencewhiteall <- merge(recurrencewhiteall, mergeOTRS, by.x="submitter_id", by.y="indiv", all.y=TRUE)
-
-recurrencewhiteall$AJCCN <- ifelse (recurrencewhiteall$AJCCN=="N0" | recurrencewhiteall$AJCCN=="N0 (I-)" | recurrencewhiteall$AJCCN=="N0 (I+)", 0, recurrencewhiteall$AJCCN)
-recurrencewhiteall$AJCCN <- ifelse (recurrencewhiteall$AJCCN=="N1" | recurrencewhiteall$AJCCN=="N1A" | recurrencewhiteall$AJCCN=="N1B" | recurrencewhiteall$AJCCN=="N1MI" , 1, recurrencewhiteall$AJCCN)
-recurrencewhiteall$AJCCN <- ifelse (recurrencewhiteall$AJCCN=="N2" | recurrencewhiteall$AJCCN=="N2A", 2, recurrencewhiteall$AJCCN)
-recurrencewhiteall$AJCCN <- ifelse (recurrencewhiteall$AJCCN=="N3" | recurrencewhiteall$AJCCN=="N3A" | recurrencewhiteall$AJCCN=="N3B", 3, recurrencewhiteall$AJCCN)
-recurrencewhiteall$AJCCN <- ifelse (recurrencewhiteall$AJCCN=="NX", NA, recurrencewhiteall$AJCCN)
-
-recurrencewhiteall$AJCCT <- ifelse (recurrencewhiteall$AJCCT=="T1" | recurrencewhiteall$AJCCT=="T1B" | recurrencewhiteall$AJCCT=="T1C", 1, recurrencewhiteall$AJCCT)
-recurrencewhiteall$AJCCT <- ifelse (recurrencewhiteall$AJCCT=="T2" | recurrencewhiteall$AJCCT=="T2A", 2, recurrencewhiteall$AJCCT)
-recurrencewhiteall$AJCCT <- ifelse (recurrencewhiteall$AJCCT=="T3" | recurrencewhiteall$AJCCT=="T3A", 3, recurrencewhiteall$AJCCT)
-recurrencewhiteall$AJCCT <- ifelse (recurrencewhiteall$AJCCT=="T4" | recurrencewhiteall$AJCCT=="T4B" | recurrencewhiteall$AJCCT=="T4D", 4, recurrencewhiteall$AJCCT)
-recurrencewhiteall$AJCCT <- ifelse (recurrencewhiteall$AJCCT=="TX", NA, recurrencewhiteall$AJCCT)
-
-recurrencewhiteall$AJCCM <- ifelse (recurrencewhiteall$AJCCM=="CM0 (I+)" | recurrencewhiteall$AJCCM=="M0", 0, recurrencewhiteall$AJCCM)
-recurrencewhiteall$AJCCM <- ifelse (recurrencewhiteall$AJCCM=="M1", 1, recurrencewhiteall$AJCCM)
-recurrencewhiteall$AJCCM <- ifelse (recurrencewhiteall$AJCCM=="MX", NA, recurrencewhiteall$AJCCM)
-
-recurrencewhiteall$er <- ifelse (recurrencewhiteall$er=="Negative", 0, recurrencewhiteall$er)
-recurrencewhiteall$er <- ifelse (recurrencewhiteall$er=="Positive", 1, recurrencewhiteall$er)
-
-recurrencewhiteall$pr <- ifelse (recurrencewhiteall$pr=="Negative", 0, recurrencewhiteall$pr)
-recurrencewhiteall$pr <- ifelse (recurrencewhiteall$pr=="Positive", 1, recurrencewhiteall$pr)
-
-recurrencewhiteall$hr <- NA
-recurrencewhiteall$hr <- ifelse (recurrencewhiteall$er=="0" & recurrencewhiteall$pr=="0", 0, recurrencewhiteall$hr)
-recurrencewhiteall$hr <- ifelse (recurrencewhiteall$er=="1" | recurrencewhiteall$pr=="1", 1, recurrencewhiteall$hr)
-
-recurrencewhiteall$her2 <- ifelse (recurrencewhiteall$her2=="Negative", 0, recurrencewhiteall$her2)
-recurrencewhiteall$her2 <- ifelse (recurrencewhiteall$her2=="Positive", 1, recurrencewhiteall$her2)
-
-recurrencewhiteall$pam50n <- recurrencewhiteall$pam50
-recurrencewhiteall$pam50n <- ifelse (recurrencewhiteall$pam50n=="Normal-like", 1, recurrencewhiteall$pam50n)
-recurrencewhiteall$pam50n <- ifelse (recurrencewhiteall$pam50n=="Luminal A", 0, recurrencewhiteall$pam50n)
-recurrencewhiteall$pam50n <- ifelse (recurrencewhiteall$pam50n=="Luminal B", 0, recurrencewhiteall$pam50n)
-recurrencewhiteall$pam50n <- ifelse (recurrencewhiteall$pam50n=="HER2-enriched", 0, recurrencewhiteall$pam50n)
-recurrencewhiteall$pam50n <- ifelse (recurrencewhiteall$pam50n=="Basal-like", 0, recurrencewhiteall$pam50n)
-
-recurrencewhiteall$pam50luma <- recurrencewhiteall$pam50
-recurrencewhiteall$pam50luma <- ifelse (recurrencewhiteall$pam50luma=="Normal-like", 0, recurrencewhiteall$pam50luma)
-recurrencewhiteall$pam50luma <- ifelse (recurrencewhiteall$pam50luma=="Luminal A", 1, recurrencewhiteall$pam50luma)
-recurrencewhiteall$pam50luma <- ifelse (recurrencewhiteall$pam50luma=="Luminal B", 0, recurrencewhiteall$pam50luma)
-recurrencewhiteall$pam50luma <- ifelse (recurrencewhiteall$pam50luma=="HER2-enriched", 0, recurrencewhiteall$pam50luma)
-recurrencewhiteall$pam50luma <- ifelse (recurrencewhiteall$pam50luma=="Basal-like", 0, recurrencewhiteall$pam50luma)
-
-recurrencewhiteall$pam50lumb <- recurrencewhiteall$pam50
-recurrencewhiteall$pam50lumb <- ifelse (recurrencewhiteall$pam50lumb=="Normal-like", 0, recurrencewhiteall$pam50lumb)
-recurrencewhiteall$pam50lumb <- ifelse (recurrencewhiteall$pam50lumb=="Luminal A", 0, recurrencewhiteall$pam50lumb)
-recurrencewhiteall$pam50lumb <- ifelse (recurrencewhiteall$pam50lumb=="Luminal B", 1, recurrencewhiteall$pam50lumb)
-recurrencewhiteall$pam50lumb <- ifelse (recurrencewhiteall$pam50lumb=="HER2-enriched", 0, recurrencewhiteall$pam50lumb)
-recurrencewhiteall$pam50lumb <- ifelse (recurrencewhiteall$pam50lumb=="Basal-like", 0, recurrencewhiteall$pam50lumb)
-
-recurrencewhiteall$pam50her2 <- recurrencewhiteall$pam50
-recurrencewhiteall$pam50her2 <- ifelse (recurrencewhiteall$pam50her2=="Normal-like", 0, recurrencewhiteall$pam50her2)
-recurrencewhiteall$pam50her2 <- ifelse (recurrencewhiteall$pam50her2=="Luminal A", 0, recurrencewhiteall$pam50her2)
-recurrencewhiteall$pam50her2 <- ifelse (recurrencewhiteall$pam50her2=="Luminal B", 0, recurrencewhiteall$pam50her2)
-recurrencewhiteall$pam50her2 <- ifelse (recurrencewhiteall$pam50her2=="HER2-enriched", 1, recurrencewhiteall$pam50her2)
-recurrencewhiteall$pam50her2 <- ifelse (recurrencewhiteall$pam50her2=="Basal-like", 0, recurrencewhiteall$pam50her2)
-
-recurrencewhiteall$pam50basal <- recurrencewhiteall$pam50
-recurrencewhiteall$pam50basal <- ifelse (recurrencewhiteall$pam50basal=="Normal-like", 0, recurrencewhiteall$pam50basal)
-recurrencewhiteall$pam50basal <- ifelse (recurrencewhiteall$pam50basal=="Luminal A", 0, recurrencewhiteall$pam50basal)
-recurrencewhiteall$pam50basal <- ifelse (recurrencewhiteall$pam50basal=="Luminal B", 0, recurrencewhiteall$pam50basal)
-recurrencewhiteall$pam50basal <- ifelse (recurrencewhiteall$pam50basal=="HER2-enriched", 0, recurrencewhiteall$pam50basal)
-recurrencewhiteall$pam50basal <- ifelse (recurrencewhiteall$pam50basal=="Basal-like", 1, recurrencewhiteall$pam50basal)
-
-#Cox regression of survival
-covariates <- c("age", "AJCCN",  "AJCCT", "AJCCM", "hr", "her2", "pam50luma", "pam50lumb", "pam50her2", "pam50basal", "score", "PTRS", "OTRS")
-
-class(recurrencewhiteall$oss.months) = 'numeric'
-class(recurrencewhiteall$phenotype) = 'numeric'
-class(recurrencewhiteall$age) = 'numeric'
-class(recurrencewhiteall$AJCCN) = 'numeric'
-class(recurrencewhiteall$AJCCT) = 'numeric'
-class(recurrencewhiteall$AJCCM) = 'numeric'
-class(recurrencewhiteall$hr) <- 'numeric'
-class(recurrencewhiteall$her2) <- 'numeric'
-class(recurrencewhiteall$pam50luma) <- 'numeric'
-class(recurrencewhiteall$pam50lumb) <- 'numeric'
-class(recurrencewhiteall$pam50her2) <- 'numeric'
-class(recurrencewhiteall$pam50basal) <- 'numeric'
-class(recurrencewhiteall$score) = 'numeric'
-class(recurrencewhiteall$PTRS) = 'numeric'
-class(recurrencewhiteall$OTRS) = 'numeric'
-
-univ_formulas <- sapply(covariates,
-                        function(x) as.formula(paste('Surv(recurrencewhiteall$oss.months, recurrencewhiteall$phenotype)~', x)))
-
-univ_models <- lapply( univ_formulas, function(x){coxph(x, data = recurrencewhiteall)})
-
-# Extract data 
-univ_results <- lapply(univ_models,
-                       function(x){ 
-                          x <- summary(x)
-                          p.value<-signif(x$wald["pvalue"], digits=2)
-                          wald.test<-signif(x$wald["test"], digits=2)
-                          beta<-signif(x$coef[1], digits=2);#coeficient beta
-                          HR <-signif(x$coef[2], digits=2);#exp(beta)
-                          HR.confint.lower <- signif(x$conf.int[,"lower .95"], 2)
-                          HR.confint.upper <- signif(x$conf.int[,"upper .95"],2)
-                          HR <- paste0(HR, " (", 
-                                       HR.confint.lower, "-", HR.confint.upper, ")")
-                          res<-c(beta, HR, wald.test, p.value)
-                          names(res)<-c("beta", "HR (95% CI for HR)", "wald.test", 
-                                        "p.value")
-                          return(res)
-                          #return(exp(cbind(coef(x),confint(x))))
-                         })
-res <- t(as.data.frame(univ_results, check.names = FALSE))
-as.data.frame(res)
-
-PFS_European <- recurrencewhiteall %>% select(oss.months, phenotype, age, AJCCN, AJCCT, AJCCM, pam50luma, pam50her2, pam50basal, score, PTRS, OTRS)
-colnames(PFS_European) = c("oss.months", "phenotype", "Age", "AJCCN.Nodal_Status", "AJCC.Tumor_Size", "AJCC.Metastasis", "LumA.PAM50","HER2.PAM50", "Basal.PAM50","Polygenic_Score", "Predicted_Transcriptomic_Score", "Observed_Transcriptomic_Score")
-surv_objectall <- Surv(time=PFS_European$oss.months, event=as.numeric(PFS_European$phenotype))
-
-fit.coxphall <- coxph(surv_objectall ~ PFS_European$Age+PFS_European$AJCCN.Nodal_Status+PFS_European$AJCC.Tumor_Size+PFS_European$LumA.PAM50+PFS_European$Basal.PAM50+PFS_European$HER2.PAM50+PFS_European$Polygenic_Score+PFS_European$Predicted_Transcriptomic_Score+PFS_European$Observed_Transcriptomic_Score, data=PFS_European) 
-
-ggforest(fit.coxphall, data = PFS_European, main="Hazard ratios of all data in TCGA patients\n progression-free survival, EUR ancestry")
-
-#Use this code to produce the graphs of hormone receptor status without scores included
-PFS_European <- recurrencewhiteall %>% select(oss.months, phenotype, age, AJCCN, AJCCT, AJCCM, pam50luma, pam50her2, pam50basal)
-colnames(PFS_European) = c("oss.months", "phenotype", "Age", "AJCCN.Nodal_Status", "AJCC.Tumor_Size", "AJCC.Metastasis", "LumA.PAM50","HER2.PAM50", "Basal.PAM50")
-surv_objectall <- Surv(time=PFS_European$oss.months, event=as.numeric(PFS_European$phenotype))
-
-fit.coxphall <- coxph(surv_objectall ~ PFS_European$Age+PFS_European$AJCCN.Nodal_Status+PFS_European$AJCC.Tumor_Size+PFS_European$LumA.PAM50+PFS_European$HER2.PAM50+PFS_European$Basal.PAM50, data=PFS_European) 
-
-ggforest(fit.coxphall, data = PFS_European, main="Hazard ratios of all data in TCGA patients\n progression-free survival, EUR ancestry")
-```
-
-When combined with clinical data, the score performance of PTRS in overall survival remained persistent, offering an interesting signal to study further. The performance of OTRS in PFS was actually improved with clinical data (more consistent with real-world data), but this was no longer significant with incorporation of PAM50 data, suggesting that the latter encompasses the same information that the former does and the germline does not add specific information in that context.
-
-#Setting up datasets for alternate models
-```{r Alternate model dataset setup, warning=FALSE, include=FALSE, echo=FALSE}
-#Setting up survival data for use of subsequent machine learning models
-OS_vector <- survivalwhite %>% select(submitter_id, phenotype, oss.months)
-OS_vector_names <- OS_vector$submitter_id
-
-#Predicted transcriptome in breast patients and overall survival
-ptrs_os_model <- ospredictedexpressionreference
-ptrs_os_model <- ptrs_os_model %>% filter(ptrs_os_model$IID %in% OS_vector_names)
-ptrs_os_model <- merge (ptrs_os_model, OS_vector, by.x="IID", by.y="submitter_id")
-ptrs_os_model$phenotype <- as.numeric(ptrs_os_model$phenotype)
-ptrs_os_model$FID <- NULL
-colnames(ptrs_os_model)[1] <- "submitter_id"
-row.names(ptrs_os_model) <- ptrs_os_model$submitter_id
-ptrs_os_model$submitter_id <- NULL
-```
-
-# Alternate models: OS: BGLM-Cox / BGLM Weibull
-```{r OS ML models with BGLM-Cox and BGLM-Weibull, warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
-library(CoxBoost)
-
-coxboost_ptrs_os_model <- CoxBoost(ptrs_os_model[,'oss.months'],ptrs_os_model[,'phenotype'],ptrs_os_model[,1:6461], standardize=TRUE, stepno=200, criterion="pscore", stepsize.factor=1, sf.scheme="linear", x.is.01=TRUE) #Cox boost performed on predicted transcriptome alone results in 89 non-zero coefficients
-
-
-p.n.trees <- c(500,1000)
-p_lr <- c(0.01,0.05)
-p_interactiondepth <- c(2,3,5)
-p_minobs <- c(10)
-
-gbmgrid <- expand.grid( n.trees=p.n.trees,
-                        interaction.depth=p_interactiondepth,
-                        shrinkage=p_lr,
-                        n.minobsinnode =p_minobs)
-
-temp <- capture.output(gbm.model <- train(outcome ~ .,
-                                          data=training, 
-                                          method = 'gbm', 
-                                          trControl = fitControl4, 
-                                          tuneGrid=gbmgrid,
-                                          verbose=FALSE))
-
-gbm.pred <- predict(object = gbm.model, testing, type = "prob")
-testing$predicted_gbm <- gbm.pred$`1`
-
-gbm.perf <- roc(response = testing$outcome, 
-                  predictor = testing$predicted_gbm)
-
-print(auc(gbm.perf))
-print(ci.auc(gbm.perf))
-
-
-#Overall survival of OS-PTRS based on Boosted gradient linear model-Cox model (from mboost)
-
-#surv_objectPTRS_genefeatures <- Surv(time=survivalwhitePTRS_genefeatures$oss.months, event=as.numeric(survivalwhitePTRS_genefeatures$phenotype))
-
-#fit.OSPTRS_BGLMCox <- glmboost(surv_objectPTRS_genefeatures ~ENSG00000000457.13+ENSG00000001036.13+ENSG00000001167.14+ENSG00000001460.17+ENSG00000001617.11+ENSG00000002745.12+ENSG00000002746.14+ENSG00000002919.14+ENSG00000002933.7+ENSG00000003393.14+ENSG00000004809.13+ENSG00000005102.12+ENSG00000005882.11+ENSG00000006282.20+ENSG00000007376.7+ENSG00000008282.8+ENSG00000021300.13, data = survivalwhitePTRS_genefeatures, family=CoxPH(), control=boost_control(mstop=500))
-
-#ggforest(fit.OSPTRS_BGLMCox, data = survivalwhitePTRS_genefeatures)
-
-#Parameter Values
-#signature size 2,3,4,5,7,10
-#𝛼 0.001,0.01,0.05
-#𝜆 lambda.min,lambda.1se
-#mStop 200
-
-#BGLM-Weibull
-```
-
-# Alternate models: PFS: MSR-RF / Boosted Trees 
-```{r PFS ML models with MSR-RF and Boosted Trees,  warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
-```
-
-# Alternate models: COXNNET with no selection
-```{r Coxnet model of overall survival with germline genome PRS OTRS and PTRS, warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
-#OS x predicted transriptome
-os_ptrs_variance_fit_cv <- cv.glmnet(os_ptrs_variance_all[,1:6461], Surv(os_ptrs_variance_all[,'oss.months'], os_ptrs_variance_all[,'phenotype']), family="cox", maxit = 1000, relax=TRUE)
-plot(os_ptrs_variance_fit_cv)
-
-os_ptrs_variance_fit <- glmnet(os_ptrs_variance_all[,1:6461], Surv(os_ptrs_variance_all[,'oss.months'], os_ptrs_variance_all[,'phenotype']), family="cox", maxit = 1000)
-
-Coefficients <- coef(os_ptrs_variance_fit, s = os_ptrs_variance_fit_cv$lambda.min)
-Active.Index <- which(Coefficients != 0)
-Active.Coefficients <- Coefficients[Active.Index]
-subset <- os_ptrs_variance_all[,Active.Index]
-os_ptrs_genes <- colnames(subset)
-print(os_ptrs_genes)
-#write.table(os_ptrs_genes, file="os_ptrs_genes.txt", quote=F, row.names =F, col.names =F)
-
-#PFS x predicted transcriptome
-PFS_vector <- recurrencewhite %>% select(submitter_id, phenotype, pfs.months)
-PFS_vector <- PFS_vector %>% filter(pfs.months>0)
-row.names(PFS_vector) <- PFS_vector$submitter_id
-PFS_vector_rownames <- row.names(PFS_vector)
-PFS_vector$submitter_id <- NULL
-PFS_vector <- as.data.frame(lapply(PFS_vector, as.numeric))
-row.names(PFS_vector) <- PFS_vector_rownames
-PFS_vector <- as.matrix(PFS_vector)
-
-pfs_ptrs_variance <- pfspredictedexpressionreference
-pfs_ptrs_variance = pfs_ptrs_variance %>% filter(pfs_ptrs_variance$IID %in% PFS_vector_rownames)
-row.names(pfs_ptrs_variance) <- pfs_ptrs_variance$IID
-pfs_ptrs_variance_rownames <- row.names(pfs_ptrs_variance)
-pfs_ptrs_variance$FID <- NULL
-pfs_ptrs_variance$IID <- NULL
-pfs_ptrs_variance <- as.data.frame(lapply(pfs_ptrs_variance, as.numeric))
-row.names(pfs_ptrs_variance) <- pfs_ptrs_variance_rownames
-pfs_ptrs_variance <- as.matrix(pfs_ptrs_variance)
-
-pfs_ptrs_variance_all <- cbind (pfs_ptrs_variance, PFS_vector)
-
-pfs_ptrs_variance_cv <- cv.glmnet(pfs_ptrs_variance_all[,1:6461], Surv(pfs_ptrs_variance_all[,'pfs.months'], pfs_ptrs_variance_all[,'phenotype']), family="cox", maxit = 1000, relax = TRUE)
-plot(pfs_ptrs_variance_cv)
-
-pfs_ptrs_variance_fit <- glmnet(pfs_ptrs_variance_all[,1:6461], Surv(pfs_ptrs_variance_all[,'pfs.months'], pfs_ptrs_variance_all[,'phenotype']), family="cox", maxit = 1000, gamma=0)
-
-Coefficients <- coef(pfs_ptrs_variance_fit, s = pfs_ptrs_variance_cv$lambda.min)
-Active.Index <- which(Coefficients != 0)
-Active.Coefficients <- Coefficients[Active.Index]
-subset <- pfs_ptrs_variance_all[,Active.Index]
-pfs_ptrs_genes <- colnames(subset)
-print(pfs_ptrs_genes)
-#write.table(pfs_ptrs_genes, file="pfs_ptrs_genes.txt", quote=F, row.names =F, col.names =F)
-
-#OS x observed transriptome
-observedexpressionvariance <- read.table("Input/TCGA-BRCA-RNA/TCGA-BRCA_mRNA.csv", header=TRUE, sep=",")
-
-observedexpressionvariance$submitter_id_long <- substr(observedexpressionvariance$aliquot_barcode, 1, 16)
-
-observedexpressionvariance$submitter_id <- substr(observedexpressionvariance$aliquot_barcode, 1, 12)
-
-observedexpressionvariance = observedexpressionvariance %>% filter(observedexpressionvariance$submitter_id %in% samplesEURmatch)
-
-observedexpressionvariance = observedexpressionvariance %>% filter(substr(observedexpressionvariance$submitter_id_long, 14, 16)=="01A") #Isolates to primary tumor only, 682 samples remaining
-
-observedexpressionvariance$aliquot_barcode <- NULL
-observedexpressionvariance$submitter_id_long <- NULL
-
-os_otrs_variance <- observedexpressionvariance
-row.names(os_otrs_variance) <- os_otrs_variance$submitter_id
-os_otrs_variance_rownames <- row.names(os_otrs_variance)
-os_otrs_variance$submitter_id <- NULL
-os_otrs_variance <- as.data.frame(lapply(os_otrs_variance, as.numeric))
-row.names(os_otrs_variance) <- os_otrs_variance_rownames
-os_otrs_variance <- as.matrix(os_otrs_variance)
-
-OS_vector2 <- survivalwhite %>% select(submitter_id, phenotype, oss.months)
-OS_vector2 = OS_vector2 %>% filter(OS_vector2$submitter_id %in% os_otrs_variance_rownames)
-OS_vector2 <- OS_vector2 %>% filter(oss.months>0)
-row.names(OS_vector2) <- OS_vector2$submitter_id
-OS_vector2_rownames <- row.names(OS_vector2)
-OS_vector2$submitter_id <- NULL
-OS_vector2 <- as.data.frame(lapply(OS_vector2, as.numeric))
-row.names(OS_vector2) <- OS_vector2_rownames
-OS_vector2 <- as.matrix(OS_vector2)
-
-os_otrs_variance <- observedexpressionvariance
-os_otrs_variance = os_otrs_variance %>% filter(os_otrs_variance$submitter_id %in% OS_vector2_rownames)
-row.names(os_otrs_variance) <- os_otrs_variance$submitter_id
-os_otrs_variance_rownames <- row.names(os_otrs_variance)
-os_otrs_variance$submitter_id <- NULL
-os_otrs_variance <- as.data.frame(lapply(os_otrs_variance, as.numeric))
-row.names(os_otrs_variance) <- os_otrs_variance_rownames
-os_otrs_variance <- as.matrix(os_otrs_variance)
-
-os_otrs_variance_all <- cbind (os_otrs_variance, OS_vector2)
-
-os_otrs_variance_fit_cv <- cv.glmnet(os_otrs_variance_all[,1:17321], Surv(os_otrs_variance_all[,'oss.months'], os_otrs_variance_all[,'phenotype']), family="cox", maxit = 1000, relax=TRUE)
-plot(os_otrs_variance_fit_cv)
-
-os_otrs_variance_fit <- glmnet(os_otrs_variance_all[,1:17321], Surv(os_otrs_variance_all[,'oss.months'], os_otrs_variance_all[,'phenotype']), family="cox", maxit = 1000, gamma=0)
-
-Coefficients <- coef(os_otrs_variance_fit, s = os_otrs_variance_fit_cv$lambda.min)
-Active.Index <- which(Coefficients != 0)
-Active.Coefficients <- Coefficients[Active.Index]
-subset <- os_otrs_variance_all[,Active.Index]
-os_otrs_genes <- colnames(subset)
-print(os_otrs_genes)
-#write.table(os_otrs_genes, file="os_otrs_genes.txt", quote=F, row.names =F, col.names =F)
-
-#PFS x observed transriptome
-pfs_otrs_variance <- observedexpressionvariance
-row.names(pfs_otrs_variance) <- pfs_otrs_variance$submitter_id
-pfs_otrs_variance_rownames <- row.names(pfs_otrs_variance)
-pfs_otrs_variance$submitter_id <- NULL
-pfs_otrs_variance <- as.data.frame(lapply(pfs_otrs_variance, as.numeric))
-row.names(pfs_otrs_variance) <- pfs_otrs_variance_rownames
-pfs_otrs_variance <- as.matrix(pfs_otrs_variance)
-
-PFS_vector2 <- recurrencewhite %>% select(submitter_id, phenotype, pfs.months)
-PFS_vector2 = PFS_vector2 %>% filter(PFS_vector2$submitter_id %in% pfs_otrs_variance_rownames)
-PFS_vector2 <- PFS_vector2 %>% filter(pfs.months>0)
-row.names(PFS_vector2) <- PFS_vector2$submitter_id
-PFS_vector2_rownames <- row.names(PFS_vector2)
-PFS_vector2$submitter_id <- NULL
-PFS_vector2 <- as.data.frame(lapply(PFS_vector2, as.numeric))
-row.names(PFS_vector2) <- PFS_vector2_rownames
-PFS_vector2 <- as.matrix(PFS_vector2)
-
-pfs_otrs_variance <- observedexpressionvariance
-pfs_otrs_variance = pfs_otrs_variance %>% filter(pfs_otrs_variance$submitter_id %in% PFS_vector2_rownames)
-row.names(pfs_otrs_variance) <- pfs_otrs_variance$submitter_id
-pfs_otrs_variance_rownames <- row.names(pfs_otrs_variance)
-pfs_otrs_variance$submitter_id <- NULL
-pfs_otrs_variance <- as.data.frame(lapply(pfs_otrs_variance, as.numeric))
-row.names(pfs_otrs_variance) <- pfs_otrs_variance_rownames
-pfs_otrs_variance <- as.matrix(pfs_otrs_variance)
-
-pfs_otrs_variance_all <- cbind (pfs_otrs_variance, PFS_vector2)
-
-pfs_otrs_variance_fit_cv <- cv.glmnet(pfs_otrs_variance_all[,1:17321], Surv(pfs_otrs_variance_all[,'pfs.months'], pfs_otrs_variance_all[,'phenotype']), family="cox", maxit = 1000, relax=TRUE)
-plot(pfs_otrs_variance_fit_cv)
-
-pfs_otrs_variance_fit <- glmnet(pfs_otrs_variance_all[,1:17321], Surv(pfs_otrs_variance_all[,'pfs.months'], pfs_otrs_variance_all[,'phenotype']), family="cox", maxit = 1000, gamma=0)
-
-Coefficients <- coef(pfs_otrs_variance_fit, s = pfs_otrs_variance_fit_cv$lambda.min)
-Active.Index <- which(Coefficients != 0)
-Active.Coefficients <- Coefficients[Active.Index]
-subset <- pfs_otrs_variance_all[,Active.Index]
-pfs_otrs_genes <- colnames(subset)
-print(pfs_otrs_genes)
-#write.table(pfs_otrs_genes, file="pfs_otrs_genes.txt", quote=F, row.names =F, col.names =F)
-```
-
-```{r Coxnet model of progression-free survival with germline genome PRS OTRS and PTRS,  warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
-```
-
-# Clustering and feature selection 
-```{r Spearman feature selection of OTRS and PTRS, warning=FALSE, cache=TRUE, include=FALSE, eval=FALSE}
-#OS-PTRS all-feature setup
-OS_vector <- survivalwhite %>% select(submitter_id, phenotype, oss.months)
-OS_vector <- OS_vector %>% filter(oss.months>0)
-row.names(OS_vector) <- OS_vector$submitter_id
-OS_vector_rownames <- row.names(OS_vector)
-OS_vector$submitter_id <- NULL
-OS_vector <- as.data.frame(lapply(OS_vector, as.numeric))
-row.names(OS_vector) <- OS_vector_rownames
-OS_vector <- as.matrix(OS_vector)
-
-os_ptrs_spearman <- ospredictedexpressionreference
-os_ptrs_spearman = os_ptrs_spearman %>% filter(os_ptrs_spearman$IID %in% OS_vector_rownames)
-row.names(os_ptrs_spearman) <- os_ptrs_spearman$IID
-os_ptrs_spearman_rownames <- row.names(os_ptrs_spearman)
-os_ptrs_spearman$FID <- NULL
-os_ptrs_spearman$IID <- NULL
-os_ptrs_spearman <- as.data.frame(lapply(os_ptrs_spearman, as.numeric))
-row.names(os_ptrs_spearman) <- os_ptrs_spearman_rownames
-os_ptrs_spearman <- as.matrix(os_ptrs_spearman)
-
-os_ptrs_spearman_all <- cbind (os_ptrs_spearman, OS_vector)
-
-os_ptrs_spearman_all_clust <- as.data.frame(os_ptrs_spearman)
-os_ptrs_spearman_all_clust <- as.data.frame(t(os_ptrs_spearman_all_clust))
-
-os_ptrs_spearman_cor <- cor(os_ptrs_spearman_all[,1:6461], method = "spearman")
-mat <- as.matrix(os_ptrs_spearman_cor)
-mat <- mat[ , colSums(is.na(mat)) == 52]
-mat <- mat[rowSums(is.na(mat)) == 0, ] #print(mat)
-os_ptrs_spearman_cor_dist <-as.dist(1-mat)
-#hr <- hclust(os_ptrs_spearman_cor_dist, method="complete")
-groups<-cutree(hr, k=8)
-
-os_ptrs_genefeatures <- as.data.frame(rownames(mat))
-os_ptrs_genefeatures <- cbind(os_ptrs_genefeatures, groups)
-colnames(os_ptrs_genefeatures) <- c("geneID", "clust")
-```
+In a univariate analysis, OTRS is not significantly associated with progression-free survival in breast cancer. 

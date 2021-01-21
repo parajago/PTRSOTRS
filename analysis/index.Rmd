@@ -33,9 +33,11 @@ Hae Kyung Im <br>
 
 <p>Performance of PTRS/OTRS using <a href="https://parajago.github.io/PTRSOTRS/survival.html">survival GWAS for weights</a> instead of risk GWAS</p>
 
+<p>Performance of PTRS/OTRS across <a href="https://parajago.github.io/PTRSOTRS/subtype.html">breast cancer subtypes</a></p>
+
 <p>Performance of PTRS/OTRS with inclusion of <a href="https://parajago.github.io/PTRSOTRS/clinical.html">breast cancer clinical data</a></p>
 
-<p>Performance of PTRS/OTRS across <a href="https://parajago.github.io/PTRSOTRS/subtype.html">breast cancer subtypes</a></p>
+<p>Evaluating PTRS/OTRS performance using <a href="https://parajago.github.io/PTRSOTRS/coxnet.html">coxnet</a> models</p>
 
 <p>Test of performance across p-value thresholds: <a href="https://liangyy.github.io/tcga-survival/brca_cox.html">link</a></p>
 

@@ -80,13 +80,13 @@ calculate_trs = function(expression_df, effect_size_df, pvalue_cutoffs = c(5e-8,
 }
 ```
 
-#Germline risk: Observed transcriptomic score (OTRS)
+# Germline*Somatic: Observed transcriptomic score (OTRS)
 
 This is the code to generate the observed transcriptomic risk score and assess its ability to prognosticate overall survival and progression free survival among breast cancer patients. 
 
-The observed transcriptomic score is derived from using the weight of a gene's association to germline risk of breast cancer * observed expression of that gene in the tumor, summed across different thresholds of signifcance. 
+The observed transcriptomic score is derived from using the weight of a gene's association to germline risk of breast cancer * observed expression of that gene in the tumor, summed across different thresholds of significance. 
 
-#OTRS-Overall survival in breast cancer 
+# OTRS-Overall survival in breast cancer 
 ```{r Observed-TPRS score generation, cache=TRUE, warning=FALSE, echo=FALSE}
 setwd("~/Research-Local/2020-ptrsotrs")
 osobservedexpression <- read.table("Input/observed_expression/BRCA-obexp/TCGA-BRCA_mRNA.csv", header=TRUE, sep=",")
@@ -166,10 +166,12 @@ surv_objectOTRS <- Surv(time=survivalwhiteOTRS$oss.months, event=as.numeric(surv
 fit.coxphOTRS <- coxph(surv_objectOTRS ~ survivalwhiteOTRS$tprs,
                    data = survivalwhiteOTRS)
 
-ggforest(fit.coxphOTRS, data = survivalwhiteOTRS, main="Observed transcriptomic score in overall survival in European ancestry patients")
+ggforest(fit.coxphOTRS, data = survivalwhiteOTRS, main="Observed transcriptomic score in overall survival\nin European ancestry patients")
 ```
 
-#OTRS-Progression-free survival in breast cancer 
+In a univariate analysis, OTRS is not significantly associated with overall survival in breast cancer. 
+
+# OTRS-Progression-free survival in breast cancer 
 ```{r Observed-TPRS score generation for progression free survival, cache=TRUE, echo=FALSE, warning=FALSE}
 pheno <- famPFS %>% select(fullID,phenotype)
 names(pheno) = c("SUBJID", "phenotype") 
@@ -202,7 +204,7 @@ surv_objectOTRS <- Surv(time=recurrencewhiteOTRS$pfs.months, event=as.numeric(re
 fit.coxphOTRS <- coxph(surv_objectOTRS ~ recurrencewhiteOTRS$tprs,
                    data = recurrencewhiteOTRS)
 
-ggforest(fit.coxphOTRS, data = recurrencewhiteOTRS, main="Observed transcriptomic score in progression-free survival in European ancestry patients")
+ggforest(fit.coxphOTRS, data = recurrencewhiteOTRS, main="Observed transcriptomic score in progression-free survival\nin European ancestry patients")
 ```
 
-There is no statistically significant association between OS/PFS and OTRS. However, recurrence score, while not significant clinically, has the next closest statistical significance. 
+In a univariate analysis, OTRS is not significantly associated with progression-free survival in breast cancer. 
